@@ -273,12 +273,26 @@ class Coordinator:
             else:
                 L += self.learner.loss(y, y_hat)
 
+        return L
+
+    def step(self, n_iter:int):
+
+        for _ in range(n_iter):
+
+            self.get_stations_info(50)
+
+            L = self.feed_play(self.info, 5, 2, 0.1)
+            #This one also modifies the state of stations network and city
+
+            self.backprop(L)
+
+
     def display(self):
 
         density = self.metropolis.frame
         plt.imshow(density, cmap='viridis', origin='lower')
 
-        self.stations_network.display()
+        self.stations_network.display(self.size)
         points_dict = self.stations_network.display_lines
 
         
@@ -323,4 +337,5 @@ city_params={
 
 coord = Coordinator("dummy", 500, Station(10, 5), metro_params, city_params, 0.3, 0.1)
 
+coord.step(10)
 coord.display()

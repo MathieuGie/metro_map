@@ -1,11 +1,11 @@
 import torch
-import torch.nn as nn
+import torch.nn as tnn
 import torch.nn.functional as F
 import numpy as np
 
 from nn import nn
 
-loss = nn.MSELoss()
+loss = tnn.MSELoss()
 
 class Learner():
 

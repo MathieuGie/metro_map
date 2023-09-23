@@ -1,17 +1,17 @@
 import torch
-import torch.nn as nn
+import torch.nn as tnn
 import torch.nn.functional as F
 
-class nn(nn.Module):
+class nn(tnn.Module):
 
     def __init__(self, k :int):
-        super(nn, self).__init__()
+        super().__init__()
 
-        self.fc1 = nn.Linear(12+4*k, 120)  # 5*5 from image dimension
-        self.fc2 = nn.Linear(120, 64)
-        self.fc3 = nn.Linear(64, 15)
+        self.fc1 = tnn.Linear(12+4*k, 120)  # 5*5 from image dimension
+        self.fc2 = tnn.Linear(120, 64)
+        self.fc3 = tnn.Linear(64, 15)
 
-        self.relu = nn.ReLU()
+        self.relu = tnn.ReLU()
 
     def forward(self, x):
 

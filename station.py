@@ -171,7 +171,7 @@ class Stations_network:
         self.all_stations[self.n_stations-1].connected[self.all_stations[index]]=2
         self.all_stations[index].connected[self.all_stations[self.n_stations-1]]=2
 
-    def display(self):
+    def display(self, size):
 
         visited = []
         lines={}
@@ -179,8 +179,13 @@ class Stations_network:
 
         while len(visited)<self.n_stations:
 
+            print("all stations", self.all_stations)
+
             n_lines+=1
-            station = min(list(self.all_stations.keys()))
+            station_ind = min(list(self.all_stations.keys()))
+            station = self.all_stations[station_ind]
+
+            print(station.previous)
 
             while station.previous is not None:
                 station = station.previous
@@ -189,8 +194,20 @@ class Stations_network:
 
             while station.next is not None:
 
-                lines[n_lines].append(station.location)
+                i = station.location[0] + size/2
+                j = station.location[1] + size/2
+
+                lines[n_lines].append((i,j))
+                visited.append(station)
                 station = station.next
+
+            if station.previous is None and station.next is None:
+
+                i = station.location[0] + size/2
+                j = station.location[1] + size/2
+
+                lines[n_lines].append((i,j))
+                visited.append(station)
 
         self.display_lines = lines
 
