@@ -7,7 +7,7 @@ class nn(tnn.Module):
     def __init__(self, k :int):
         super().__init__()
 
-        self.fc1 = tnn.Linear(12+4*k, 120)  # 5*5 from image dimension
+        self.fc1 = tnn.Linear(14+4*k, 120)  # 5*5 from image dimension
         self.fc2 = tnn.Linear(120, 64)
         self.fc3 = tnn.Linear(64, 15)
 

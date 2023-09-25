@@ -48,6 +48,8 @@ class Learner():
         Q_next=out2[:,self.action2][0][0]
 
         #y:     
+        print(r)
+        print(Q_next)
         self.y=r+ self.gamma*Q_next
 
 

@@ -56,6 +56,7 @@ class Metropolis:
         mid=int(self.size/2)
 
         for pixel in self.area:
+            #print(pixel)
             frame[mid+pixel[0], mid+pixel[1]]=1
 
         self.frame=frame
@@ -96,7 +97,9 @@ class Metropolis:
     def pick_point(self):
 
         frame=self.frame
-        rows=np.cumsum(np.array([np.sum(frame, axis=1)/np.sum(frame)]),axis=1)[0]
+        rows=np.cumsum(np.array([np.sum(frame, axis=1)/np.sum(frame)]), axis=1)[0]
+
+        #print("rows:", rows)
 
         row=np.random.random()
 
@@ -110,18 +113,20 @@ class Metropolis:
                 I=i+1
                 break
 
-        columns=np.cumsum(np.array([(frame[I]/np.sum(frame[I]))]),axis=1)[0]
+        columns=np.cumsum(np.array([(frame[I]/np.sum(frame[I]))]), axis=1)[0]
+
+        #print("columns", columns)
 
         col=np.random.random()
 
         for j in range(len(columns)):
-            if j==0 and col<columns[i]:
+            if j==0 and col<columns[j]:
                 J=0
                 break
-            elif i==len(columns)-1:
+            elif j==len(columns)-1:
                 J=len(columns)-1
-            elif columns[i]<=col and columns[i+1]>col:
-                J=i+1
+            elif columns[j]<=col and columns[j+1]>col:
+                J=j+1
                 break
 
         return (I,J)
@@ -149,6 +154,8 @@ class Metropolis:
                 if new_center not in self.area:
                     ok=True
                     self.cities.append(City("hello"+str(self.time), self.time, [new_center]))
+
+        self.update_frame()
 
     def grow_station(self, station:Station, p_growth:float):
 

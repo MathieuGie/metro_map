@@ -1,5 +1,5 @@
 from city import City, Metropolis
-from station import Station, Stations_network
+from station import Point, Station, Stations_network
 from learner import Learner
 from nn import nn
 
@@ -51,25 +51,27 @@ class Coordinator:
         self.stations_network.set_neighbours(self.r_stations, self.k_stations) #set neighbours for each station
 
         i=0
-        for station in self.stations_network.all_stations:
+        for station_ind in self.stations_network.all_stations:
+
+            station = self.stations_network.all_stations[station_ind]
 
             self.info[i, 0]=station.location[0]
             self.info[i, 1]=station.location[1]
 
-            if station.location in self.center.area:
+            if station.location in self.metropolis.center.area:
                 self.info[i, 2]=1
 
             if station.location[0]+15<self.size/2:
-                self.info[i, 3]=self.metropolis.frame[(self.location[0]+15, self.locaion[1])]
+                self.info[i, 3]=self.metropolis.frame[(station.location[0]+15, station.location[1])]
 
             if station.location[1]+15<self.size/2:
-                self.info[i, 4]=self.metropolis.frame[(self.location[0], self.locaion[1]+15)]
+                self.info[i, 4]=self.metropolis.frame[(station.location[0], station.location[1]+15)]
 
             if station.location[0]-15>-self.size/2:
-                self.info[i, 5]=self.metropolis.frame[(self.location[0]-15, self.locaion[1])]
+                self.info[i, 5]=self.metropolis.frame[(station.location[0]-15, station.location[1])]
 
             if station.location[1]-15>-self.size/2:
-                self.info[i, 6]=self.metropolis.frame[(self.location[0], self.locaion[1]-15)]
+                self.info[i, 6]=self.metropolis.frame[(station.location[0], station.location[1]-15)]
 
             n=0
             for neighb in station.neighbours:
@@ -89,33 +91,37 @@ class Coordinator:
         #Then, simulate trips to get information about the flow
 
         for i in range(n_trips):
-            initial=self.metropolis.pick_point()
-            final=self.metropolis.pick_point()
+
+            i_initial, j_initial = self.metropolis.pick_point()
+            i_final, j_final = self.metropolis.pick_point()
+            initial=Point(i_initial, j_initial)
+            final=Point(i_final, j_final)
 
             walking_time, metro_time, summary_metro = self.stations_network.get_fastest(initial, final, self.speed_metro, self.speed_change, self.speed_walk, self.r_walking, self.k_walking)
             point=final
 
-            while point!=initial:
+            if metro_time != np.infty:
+                while point!=initial:
 
-                new=summary_metro[point][1]
+                    new=summary_metro[point][1]
 
-                if point==final: #last station
-                    if walking_time < metro_time:
-                        self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+2]+=1
-                    else:
-                        self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+3]+=1
+                    if point==final: #last station
+                        if walking_time < metro_time:
+                            self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+2]+=1
+                        else:
+                            self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+3]+=1
 
-                if new==initial: #first station
-                    if walking_time < metro_time:
-                        self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations]+=1
-                    else:
-                        self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+1]+=1
+                    if new==initial: #first station
+                        if walking_time < metro_time:
+                            self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations]+=1
+                        else:
+                            self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+1]+=1
 
-                else: #Just a station through
-                    if walking_time < metro_time:
-                        self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+4]+=1
-                    else:
-                        self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+5]+=1
+                    else: #Just a station through
+                        if walking_time < metro_time:
+                            self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+4]+=1
+                        else:
+                            self.info[self.stations_network.reverse_all_stations[new],7+4*self.k_stations+5]+=1
 
 
         self.info[:,-6:]/=n_trips
@@ -152,11 +158,14 @@ class Coordinator:
             r=-1
 
         if new_location is not None:
-            self.stations_network.make_new_station(new_location[0], new_location[1])
+            self.stations_network.make_new_station(int(new_location[0]), int(new_location[1]))
 
         if r is None:
             self.stations_network.build_graph(self.speed_metro, self.speed_change)
-            self.get_reward()
+            self.get_reward(self.stations_network.all_stations[index], 100)
+        
+        if r is None:
+            r=0
 
 
         #Also need to settle lines:
@@ -178,34 +187,43 @@ class Coordinator:
 
     def change_metropolis(self):
 
-        self.metropolis.next_round(self.p_center, self.p_other, self.p_new)
+        print(self.stations_network.all_stations)
+        self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
 
         for index in self.stations_network.all_stations:
+            print("NEW STATION:", self.stations_network.all_stations[index].location)
             self.metropolis.grow_station(self.stations_network.all_stations[index], self.p_growth)
 
-    def get_reward(self, station: Station, n_trips:int):
+    def get_reward(self, station: Station, n_trips:int): 
 
         reward=0
 
         for i in range(n_trips):
-            initial=self.metropolis.pick_point()
-            final=self.metropolis.pick_point()
+
+            i_initial, j_initial = self.metropolis.pick_point()
+            i_final, j_final = self.metropolis.pick_point()
+            initial=Point(i_initial, j_initial)
+            final=Point(i_final, j_final)
 
             walking_time, metro_time, summary_metro = self.stations_network.get_fastest(initial, final, self.speed_metro, self.speed_change, self.speed_walk, self.r_walking, self.k_walking)
             point=final
 
-            while point!=initial:
+            if summary_metro[point][0] != np.infty:
+                while point!=initial:
 
-                new=summary_metro[point][1]
+                    new=summary_metro[point][1]
 
-                if point==final and new==station: #last station
-                    reward+=1
+                    if point==final and new==station: #last station
+                        reward+=1
 
-                if new==initial and point==station: #first station
-                    reward+=1
+                    if new==initial and point==station: #first station
+                        reward+=1
 
-                elif new==station: #Just a station through
-                    reward+=0.8
+                    elif new==station: #Just a station through
+                        reward+=0.8
+
+                    point = new
+                
 
         return reward/n_trips
 
@@ -247,10 +265,12 @@ class Coordinator:
             remaining=torch.zeros(1,1)
             remaining[0,0]=actions_left
 
-            vec = torch.cat((remaining, state[i,:]), axis=1)
+            row = state[i,:]
+            row = row.reshape(1,-1)
+
+            vec = torch.cat((remaining, row), axis=1)
 
             self.learner.predict(vec, epsilon)
-            y_hat = self.learner.y_hat
             action = self.learner.action
 
             if action != 0:
@@ -262,22 +282,27 @@ class Coordinator:
             remaining=torch.zeros(1,1)
             remaining[0,0]=actions_left
 
-            vec = torch.cat((remaining, state[i,:]), axis=1)
+            vec = torch.cat((remaining, row), axis=1)
 
             self.learner.target(vec, r)
-            y = self.learner.y
 
             if L is None:
-                L = self.learner.loss(y, y_hat)
+                L = self.learner.get_loss()
 
             else:
-                L += self.learner.loss(y, y_hat)
+                L += self.learner.get_loss()
 
         return L
 
     def step(self, n_iter:int):
 
-        for _ in range(n_iter):
+        for _ in range(10):
+
+            self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
+
+        for i in range(n_iter):
+
+            print("iteration:", i)
 
             self.get_stations_info(50)
 

@@ -88,15 +88,19 @@ class Stations_network:
         V=[]
         E={}
 
-        for station in self.all_stations:
+        for station_ind in self.all_stations:
+
+            station = self.all_stations[station_ind]
 
             V.append(station)
 
-            if (station, station.previous) not in list(E.keys()) or (station.previous, station) not in list(E.keys()):
-                E[(station, station.previous)]=speed_metro*euclidean(station.location, station.previous.location)
+            if station.previous is not None:
+                if (station, station.previous) not in list(E.keys()) or (station.previous, station) not in list(E.keys()):
+                    E[(station, station.previous)]=speed_metro*euclidean(station.location, station.previous.location)
 
-            if (station, station.next) not in list(E.keys()) or (station.next, station) not in list(E.keys()):
-                E[(station, station.next)]=speed_metro*euclidean(station.location, station.next.location)
+            if station.next is not None:
+                if (station, station.next) not in list(E.keys()) or (station.next, station) not in list(E.keys()):
+                    E[(station, station.next)]=speed_metro*euclidean(station.location, station.next.location)
 
             if station.connected!={}:
                 for other in list(station.connected.keys()):
@@ -153,6 +157,8 @@ class Stations_network:
         #Run Dijstra on this graph and compare:
 
         metro_time, summary_metro=dijstra(V,E,a,b)
+        #print("HELLOOOOO")
+        #print(metro_time, summary_metro)
         walking_time=euclidean(a.location, b.location)*speed_walk
 
         return (walking_time, metro_time, summary_metro)
@@ -211,7 +217,4 @@ class Stations_network:
 
         self.display_lines = lines
 
-            
-                
-
-
+    

@@ -1,16 +1,26 @@
 from typing import List, Dict
+import numpy as np
 
 def dijstra(V, E, source, end):
 
+    #print("V", V)
+    #print("E", E)
+
     visited=[]
     distance={source:[0,None]}
+    
+    for u in V:
+        if u != source:
+            distance[u] = [np.infty, None]
+
+
     unvisited=[u for u in V]
 
     study=source
 
     while unvisited!=[]:
 
-        #print("STUDYING:", study)
+        #print("STUDYING:", study.location)
 
         #Find current distance from source
         dis=distance[study][0]
@@ -38,7 +48,7 @@ def dijstra(V, E, source, end):
                 distance[key]=[dis+neighbours[key], study]
 
         distance=dict(sorted(distance.items(), key=lambda item: item[1][0]))
-        print("distance", distance)
+        #print("distance", distance)
 
         #Choose what to study next and update visited and unvisited:
         #print("remove", study, unvisited)
@@ -51,7 +61,7 @@ def dijstra(V, E, source, end):
                 study=key
                 break
 
-    return distance[end], distance
+    return distance[end][0], distance
 
 #V=[0,1,2,3,4,5,6,7,8,9,10]
 #E={(0,1):1, (1,2):2, (0,3):6, (3,4):4, (4,5):1, (3,6):3, (2,7):3, (5,8):10, (7,8):20, (7,9):22, (8,9):1, (2,10):100, (9,10):1}
