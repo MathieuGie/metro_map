@@ -43,17 +43,20 @@ class Coordinator:
 
         self.tau = tau
 
+        self.optimiser =torch.optim.Adam(self.learner.prediction_nn.parameters(), lr=0.001)
+
 
     def get_stations_info(self, n_trips:int):
 
         #First get geographical features (location, in main city or not...)
 
+        self.info=torch.zeros((self.stations_network.n_stations, 13+4*self.k_stations))
         self.stations_network.set_neighbours(self.r_stations, self.k_stations) #set neighbours for each station
 
-        i=0
-        for station_ind in self.stations_network.all_stations:
+        #print(self.info.shape)
+        for i in self.stations_network.all_stations:
 
-            station = self.stations_network.all_stations[station_ind]
+            station = self.stations_network.all_stations[i]
 
             self.info[i, 0]=station.location[0]
             self.info[i, 1]=station.location[1]
@@ -180,18 +183,18 @@ class Coordinator:
             self.stations_network.make_change_station(index)
 
             #Now settle the previous/ next with next interchange
-            self.stations_network.all_stations[self.n_stations-1].next = self.stations_network.all_stations[self.n_stations-2]
-            self.stations_network.all_stations[self.n_stations-2].previous = self.stations_network.all_stations[self.n_stations-1]
+            self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[self.stations_network.n_stations-2]
+            self.stations_network.all_stations[self.stations_network.n_stations-2].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
 
         return r
 
     def change_metropolis(self):
 
-        print(self.stations_network.all_stations)
+        #print(self.stations_network.all_stations)
         self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
 
         for index in self.stations_network.all_stations:
-            print("NEW STATION:", self.stations_network.all_stations[index].location)
+            #print("NEW STATION:", self.stations_network.all_stations[index].location)
             self.metropolis.grow_station(self.stations_network.all_stations[index], self.p_growth)
 
     def get_reward(self, station: Station, n_trips:int): 
@@ -230,9 +233,9 @@ class Coordinator:
     def backprop(self, L):
 
         #Backprop on nn
-        self.learner.prediction_nn.optimiser.zero_grad()
+        self.optimiser.zero_grad()
         L.backward()
-        self.learner.prediction_nn.optimiser.step()
+        self.optimiser.step()
 
         #Update nn_target
         for target_param, param in zip(self.learner.target_nn.parameters(), self.learner.prediction_nn.parameters()):
@@ -320,11 +323,18 @@ class Coordinator:
         self.stations_network.display(self.size)
         points_dict = self.stations_network.display_lines
 
+        print(points_dict)
+
+        x_coords = []
+        y_coords = []
+
+        for point in points_dict:
+            x_coords.append(points_dict[point][0])
+            y_coords.append(points_dict[point][1])
         
         for key, points in points_dict.items():
-            x_coords, y_coords = zip(*points)  # Unzip the list of tuples into two lists
-            plt.scatter(x_coords, y_coords, label=f"Group {key}")  # Scatter plot for points
-            plt.plot(x_coords, y_coords)  # Line plot to connect points
+            #x_coords, y_coords = zip(*points)  # Unzip the list of tuples into two lists
+            plt.scatter(x_coords, y_coords)  # Scatter plot for points
 
         plt.colorbar(label='Density')
         plt.title('Density and Points')
@@ -362,5 +372,5 @@ city_params={
 
 coord = Coordinator("dummy", 500, Station(10, 5), metro_params, city_params, 0.3, 0.1)
 
-coord.step(10)
+coord.step(4)
 coord.display()

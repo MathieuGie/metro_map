@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 #Why cannot import ? 
 def euclidean(a,b):
@@ -25,7 +26,7 @@ class Station(Point):
     def __init__ (self, i, j):
         super().__init__(i, j)
 
-        self.lines=[]
+        self.line=None
         self.neighbours={}
 
         #Initialise the sequence of stations
@@ -74,7 +75,7 @@ class Stations_network:
                         neighbours[self.all_stations[other_ind]]=euclidean(self.all_stations[station_ind].location, self.all_stations[other_ind].location)
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
-                    elif euclidean(self.all_stations[station_ind].location, self.all_stations[other_ind].location)<list(neighbours.keys())[-1]:
+                    elif euclidean(self.all_stations[station_ind].location, self.all_stations[other_ind].location)<neighbours[list(neighbours.keys())[-1]]:
                         del neighbours[list(neighbours.keys())[-1]]
                         neighbours[self.all_stations[other_ind]]=euclidean(self.all_stations[station_ind].location, self.all_stations[other_ind].location)
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
@@ -129,7 +130,7 @@ class Stations_network:
                         neighbours[station_ind]=euclidean(self.all_stations[station_ind].location, p.location)
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
-                    elif euclidean(self.location, self.all_stations[station_ind].location)<list(neighbours.keys())[-1]:
+                    elif euclidean(p.location, self.all_stations[station_ind].location)<list(neighbours.keys())[-1]:
                         del neighbours[list(neighbours.keys())[-1]]
                         neighbours[station_ind]=euclidean(self.all_stations[station_ind].location, p.location)
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
@@ -179,42 +180,56 @@ class Stations_network:
 
     def display(self, size):
 
+        #assembles stations by lines
         visited = []
+        unvisited = []
+        for station_ind in self.all_stations:
+            unvisited.append(self.all_stations[station_ind])
+
         lines={}
         n_lines=0
 
         while len(visited)<self.n_stations:
 
-            print("all stations", self.all_stations)
-
             n_lines+=1
-            station_ind = min(list(self.all_stations.keys()))
-            station = self.all_stations[station_ind]
+            
+            index = np.random.randint(len(unvisited))
+            station = unvisited[index]
 
-            print(station.previous)
+            print("unvisited", unvisited)
+            print("station", index, len(visited), self.n_stations)
 
-            while station.previous is not None:
-                station = station.previous
+            """
+            if station.previous is not None:
 
-            lines[n_lines] = []
+                while station.previous is not None:
+                    station = station.previous
 
-            while station.next is not None:
+                lines[n_lines] = []
 
-                i = station.location[0] + size/2
-                j = station.location[1] + size/2
+                while station.next is not None:
 
-                lines[n_lines].append((i,j))
-                visited.append(station)
-                station = station.next
+                    i = station.location[0] + size/2
+                    j = station.location[1] + size/2
 
-            if station.previous is None and station.next is None:
+                    lines[n_lines]=(i,j)
+                    unvisited.remove(station)
+                    visited.append(station)
+                    
+                    station = station.next
+            """
 
-                i = station.location[0] + size/2
-                j = station.location[1] + size/2
+            #if station.previous is None and station.next is None:
+            #else:
 
-                lines[n_lines].append((i,j))
-                visited.append(station)
+            i = station.location[0] + size/2
+            j = station.location[1] + size/2
+
+            lines[n_lines]=(i,j)
+
+            unvisited.remove(station)
+            visited.append(station)
+
+            
 
         self.display_lines = lines
-
-    
