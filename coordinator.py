@@ -16,10 +16,23 @@ class Coordinator:
 
         self.time = 0
 
+        #City params
+
         central_city = City(name, self.time, [[0,0]])
 
         self.size=size
         self.metropolis=Metropolis(central_city, [], self.time, size)
+
+        self.p_center = city_params["p_center"]
+        self.p_other = city_params["p_other"]
+        self.p_new = city_params["p_new"]
+        self.p_growth = city_params["p_growth"]
+
+        for _ in range(15):
+            self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
+
+        #Metro params
+
         self.stations_network=Stations_network([starting_station])
         self.learner=Learner(metro_params["k_stations"], gamma)
          
@@ -30,11 +43,6 @@ class Coordinator:
         self.speed_walk=metro_params["speed_walk"]
         self.r_walking=metro_params["r_walking"]
         self.k_walking= metro_params["k_walking"]
-
-        self.p_center = city_params["p_center"]
-        self.p_other = city_params["p_other"]
-        self.p_new = city_params["p_new"]
-        self.p_growth = city_params["p_growth"]
 
         self.info=torch.zeros((self.stations_network.n_stations, 13+4*self.k_stations)) #Will be a tensor stacking all info of each one of the stations
 
@@ -299,13 +307,13 @@ class Coordinator:
 
     def step(self, n_iter:int):
 
-        for _ in range(10):
+        for _ in range(2):
 
             self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
 
         for i in range(n_iter):
 
-            print("iteration:", i)
+            print("iteration_coord:", i)
 
             self.get_stations_info(50)
 
@@ -366,7 +374,7 @@ metro_params={
 city_params={
     "p_center" : 0.3,
     "p_other" : 0.1,
-    "p_new" : 0.05,
+    "p_new" : 0.7,
     "p_growth" : 0.3,
 }
 

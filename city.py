@@ -211,22 +211,52 @@ class Metropolis:
 
     def grow_station(self, station:Station, p_growth:float):
 
-        """
         neighbors=[[1,1],[1,0],[1,-1],[0,1],[0,-1],[-1,1],[-1,0],[-1,-1]]
 
-        for neighb in neighbors:
+        if station.location in self.area:
 
-            possible=[station.location[0]+neighb[0], station.location[1]+neighb[1]]
-            if random.uniform(0,1)>p_growth:
-                if (possible not in self.area):
-                    if possible[0]<self.size/2 and possible[0]>-self.size/2 and possible[1]<self.size/2 and possible[1]>-self.size/2:
-                        self.area.append(possible)
+            p_station, city_station = self.density[(station.location[0], station.location[1])]
 
-        self.update_frame()
-        """
+            for neighb in neighbors:
 
+                possible=[station.location[0]+neighb[0], station.location[1]+neighb[1]]
+                possible_tuple = (station.location[0]+neighb[0], station.location[1]+neighb[1])
+
+                if random.uniform(0,1)<p_growth: 
+                    if possible in self.area:
+                        p, city = self.density[possible_tuple]
+                        p+=0.01
+
+                        if p>1:
+                            p=1
+
+                        self.density[possible_tuple] = (p,city)
+
+                if random.uniform(0,1)<p_growth:
+                    if (possible not in self.area):
+                        if possible[0]<self.size/2 and possible[0]>-self.size/2 and possible[1]<self.size/2 and possible[1]>-self.size/2:
+
+                            self.area.append(possible)
+
+                            if city_station == self.cities[0]:
+                                self.density[possible_tuple]=(0.5, city_station)
+                            else:
+                                self.density[possible_tuple]=(p_station, city_station)
+
+        elif random.uniform(0,1)<p_growth:
+
+            #Create new city around station
+            new_center = station.location
+            self.cities.append(City("hello"+str(self.time), self.time, [new_center]))
+            dens = (-0.5/360)*euclidean(new_center, [0,0])+0.5
+            self.density[(new_center[0], new_center[1])] = (dens, self.cities[-1])
             
 
+
+        self.update_frame()
+
+            
+"""
 city=City("hello", 0, [[0,0]])
 metropolis=Metropolis(city, [],0, 500)
 
@@ -242,3 +272,4 @@ fig, ax = plt.subplots()
 ax.imshow(metropolis.frame)
 
 plt.show()
+"""
