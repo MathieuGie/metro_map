@@ -168,12 +168,14 @@ class Stations_network:
 
         self.n_stations+=1
         self.all_stations[self.n_stations-1]=Station(i,j)
-        self.reverse_all_stations[Station(i,j)]=self.n_stations-1
 
     def make_change_station(self, index:int):
 
         self.n_stations+=1
-        self.all_stations[self.n_stations-1]=self.all_stations[index]
+        self.all_stations[self.n_stations-1]=copy.deepcopy(self.all_stations[index])
+
+        self.all_stations[self.n_stations-1].previous=None
+        self.all_stations[self.n_stations-1].next=None
 
         self.all_stations[self.n_stations-1].connected[self.all_stations[index]]=2
         self.all_stations[index].connected[self.all_stations[self.n_stations-1]]=2
@@ -187,49 +189,86 @@ class Stations_network:
             unvisited.append(self.all_stations[station_ind])
 
         lines={}
-        n_lines=0
+        n_lines=1
 
         while len(visited)<self.n_stations:
 
-            n_lines+=1
+            new_line=[]
             
             index = np.random.randint(len(unvisited))
             station = unvisited[index]
 
-            print("unvisited", unvisited)
-            print("station", index, len(visited), self.n_stations)
+            #print("unvisited", unvisited)
+            #print("station", index, len(visited), self.n_stations)
+            print("intermediate", lines)
 
-            """
             if station.previous is not None:
 
                 while station.previous is not None:
                     station = station.previous
+                    print("previous loop", station.location)
 
-                lines[n_lines] = []
+                ok =1
+                while ok==1:
 
-                while station.next is not None:
+                    print("next loop", station.location, station.connected)
 
                     i = station.location[0] + size/2
                     j = station.location[1] + size/2
 
-                    lines[n_lines]=(i,j)
-                    unvisited.remove(station)
+                    new_line.append((i,j))
+
+                    new = []
+                    seen = 0
+                    for sta in unvisited:
+                        if seen==0:
+                            if sta.location!=station.location or sta.next!=station.next or sta.previous!=station.previous:
+                                new.append(sta)
+                                seen=1
+                        else:
+                            new.append(sta)
+
+                    unvisited=new
+
                     visited.append(station)
-                    
-                    station = station.next
-            """
 
-            #if station.previous is None and station.next is None:
-            #else:
+                    if station.next is not None:
+                        station = station.next
 
-            i = station.location[0] + size/2
-            j = station.location[1] + size/2
+                    else: #No more station
+                        ok=0
 
-            lines[n_lines]=(i,j)
 
-            unvisited.remove(station)
-            visited.append(station)
 
-            
+            if station.previous is None and station.next is None:
+
+                print("appart", station.location)
+
+                i = station.location[0] + size/2
+                j = station.location[1] + size/2
+
+                new_line.append((i,j))
+
+                new = []
+                seen = 0
+                for sta in unvisited:
+                    if seen==0:
+                        if sta.location!=station.location or sta.next!=station.next or sta.previous!=station.previous:
+                            new.append(sta)
+                            seen=1
+                    else:
+                        new.append(sta)
+
+                unvisited=new
+                visited.append(station)
+
+            found=0
+            for line_ind in lines:
+                if new_line == lines[line_ind]:
+                    found=1
+            if found==0 and new_line!=[]:
+                lines[n_lines]=new_line
+                n_lines+=1
+
 
         self.display_lines = lines

@@ -168,8 +168,25 @@ class Coordinator:
         else:
             r=-1
 
+        #IF ADD A NEW STATION:
         if new_location is not None:
             self.stations_network.make_new_station(int(new_location[0]), int(new_location[1]))
+
+            #Also need to settle lines:
+            if self.stations_network.all_stations[index].next is None:
+                self.stations_network.all_stations[index].next = self.stations_network.all_stations[self.stations_network.n_stations-1]
+                self.stations_network.all_stations[self.stations_network.n_stations-1].previous = self.stations_network.all_stations[index]
+
+            elif self.stations_network.all_stations[index].previous is None:
+                self.stations_network.all_stations[index].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
+                self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[index]
+
+            else:
+                self.stations_network.make_change_station(index)
+
+                #Now settle the previous/ next with next interchange
+                self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[self.stations_network.n_stations-2]
+                self.stations_network.all_stations[self.stations_network.n_stations-2].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
 
         if r is None:
             self.stations_network.build_graph(self.speed_metro, self.speed_change)
@@ -177,22 +194,6 @@ class Coordinator:
         
         if r is None:
             r=0
-
-
-        #Also need to settle lines:
-
-        if self.stations_network.all_stations[index].next is None:
-            self.stations_network.all_stations[index].next = self.stations_network.all_stations[self.stations_network.n_stations-1]
-
-        elif self.stations_network.all_stations[index].previous is None:
-            self.stations_network.all_stations[index].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
-
-        else:
-            self.stations_network.make_change_station(index)
-
-            #Now settle the previous/ next with next interchange
-            self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[self.stations_network.n_stations-2]
-            self.stations_network.all_stations[self.stations_network.n_stations-2].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
 
         return r
 
@@ -282,7 +283,7 @@ class Coordinator:
             vec = torch.cat((remaining, row), axis=1)
 
             self.learner.predict(vec, epsilon)
-            action = self.learner.action
+            action = self.learner.action######HERE CANNOT PICK ACTION IF NO ACTIONS LEFT
 
             if action != 0:
                 actions_left-=1/n_allowed_per_play
@@ -329,25 +330,23 @@ class Coordinator:
         plt.imshow(density, cmap='viridis', origin='lower')
 
         self.stations_network.display(self.size)
-        points_dict = self.stations_network.display_lines
+        LINES = self.stations_network.display_lines
+        print(LINES)
 
-        print(points_dict)
+        # Predefined list of colors.
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
-        x_coords = []
-        y_coords = []
-
-        for point in points_dict:
-            x_coords.append(points_dict[point][0])
-            y_coords.append(points_dict[point][1])
-        
-        for key, points in points_dict.items():
-            #x_coords, y_coords = zip(*points)  # Unzip the list of tuples into two lists
-            plt.scatter(x_coords, y_coords)  # Scatter plot for points
+        for idx, (key, line) in enumerate(LINES.items()):
+            color = colors[idx % len(colors)]  # Cycle through colors if there are more lines than colors.
+            for i in range(len(line)-1):
+                x_values = [line[i][0], line[i+1][0]]
+                y_values = [line[i][1], line[i+1][1]]
+                plt.plot(x_values, y_values, color, label=f"Line {key}" if i == 0 else "")
 
         plt.colorbar(label='Density')
         plt.title('Density and Points')
-        plt.xlabel('x')
-        plt.ylabel('y')
+        #plt.xlabel('x')
+        #plt.ylabel('y')
 
         # Add legend to describe each group
         plt.legend()
@@ -381,4 +380,14 @@ city_params={
 coord = Coordinator("dummy", 500, Station(10, 5), metro_params, city_params, 0.3, 0.1)
 
 coord.step(4)
+
+
+for station_ind in coord.stations_network.all_stations:
+    print(coord.stations_network.all_stations[station_ind].location)
+    if coord.stations_network.all_stations[station_ind].previous is not None:
+        print("previous",coord.stations_network.all_stations[station_ind].previous.location)
+    if coord.stations_network.all_stations[station_ind].next is not None:
+        print("next",coord.stations_network.all_stations[station_ind].next.location)
+
+
 coord.display()
