@@ -182,11 +182,33 @@ class Coordinator:
                 self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[index]
 
             else:
-                self.stations_network.make_change_station(index)
 
-                #Now settle the previous/ next with next interchange
-                self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[self.stations_network.n_stations-2]
-                self.stations_network.all_stations[self.stations_network.n_stations-2].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
+                #If it is not a change station:
+                if self.stations_network.all_stations[index].connected == {}:
+                    self.stations_network.make_change_station(index)
+                    #settle the previous/ next with next interchange
+                    self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[self.stations_network.n_stations-2]
+                    self.stations_network.all_stations[self.stations_network.n_stations-2].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
+
+                else:
+                    found=0
+                    for change in self.stations_network.all_stations[index].connected:
+                        if change.previous is None and found==0:
+                            found=1
+                            change.previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
+                            self.stations_network.all_stations[self.stations_network.n_stations-1].next = change
+
+                        elif change.next is None and found==0:
+                            found=1
+                            change.next = self.stations_network.all_stations[self.stations_network.n_stations-1]
+                            self.stations_network.all_stations[self.stations_network.n_stations-1].previous = change
+
+                    if found==0:
+                        self.stations_network.make_change_station(index)
+                        #settle the previous/ next with next interchange
+                        self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[self.stations_network.n_stations-2]
+                        self.stations_network.all_stations[self.stations_network.n_stations-2].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
+
 
         if r is None:
             self.stations_network.build_graph(self.speed_metro, self.speed_change)
@@ -251,7 +273,7 @@ class Coordinator:
             target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
 
 
-    def feed_play(self, state: torch.tensor, n_selected:int, n_allowed_per_play: int, epsilon: float):
+    def feed_play(self, n_selected:int, n_allowed_per_play: int, epsilon: float):
 
         self.time+=1
         L = None
@@ -261,6 +283,10 @@ class Coordinator:
         #Select the desired station
         done=[-1]
         for i in range(n_selected):
+
+            #Make state s: (needed at every new step because changes are made)
+            self.get_stations_info(50)
+            state = self.info
 
             ind=i
             if i>=state.shape[0]:
@@ -283,19 +309,34 @@ class Coordinator:
             vec = torch.cat((remaining, row), axis=1)
 
             self.learner.predict(vec, epsilon)
-            action = self.learner.action######HERE CANNOT PICK ACTION IF NO ACTIONS LEFT
+            action = self.learner.action
 
-            if action != 0:
-                actions_left-=1/n_allowed_per_play
+            #When not allowed to play the action
+            if action != 0 and actions_left<=0:
+                actions_left=0
+                action = 0
+                r = -1
 
-            r=self.change_network(i, action)
-            self.change_metropolis()
+            #When action is playable
+            else:
+                if action != 0:
+                    actions_left-=1/n_allowed_per_play
 
+                r=self.change_network(i, action)
+                self.change_metropolis()
+
+            ### REMAINING ###
             remaining=torch.zeros(1,1)
             remaining[0,0]=actions_left
 
-            vec = torch.cat((remaining, row), axis=1)
+            #Make state s':
+            self.get_stations_info(50)
+            new_state = self.info
 
+            new_row = new_state[i,:]
+            new_row = new_row.reshape(1,-1)
+
+            vec = torch.cat((remaining, new_row), axis=1)
             self.learner.target(vec, r)
 
             if L is None:
@@ -316,9 +357,9 @@ class Coordinator:
 
             print("iteration_coord:", i)
 
-            self.get_stations_info(50)
+            #self.get_stations_info(50)
 
-            L = self.feed_play(self.info, 5, 2, 0.1)
+            L = self.feed_play(5, 2, 0.1)
             #This one also modifies the state of stations network and city
 
             self.backprop(L)
@@ -359,8 +400,8 @@ class Coordinator:
 
 
 metro_params={
-    "speed_metro" : 5,
-    "speed_change" : 2,
+    "speed_metro" : 10,
+    "speed_change" : 3,
     "speed_walk" : 1,
 
     "r_stations" : 20,
@@ -379,7 +420,7 @@ city_params={
 
 coord = Coordinator("dummy", 500, Station(10, 5), metro_params, city_params, 0.3, 0.1)
 
-coord.step(4)
+coord.step(10)
 
 
 for station_ind in coord.stations_network.all_stations:

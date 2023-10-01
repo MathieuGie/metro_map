@@ -30,11 +30,11 @@ class Station(Point):
         self.neighbours={}
 
         #Initialise the sequence of stations
-        self.previous=None
+        self.previous=None 
         self.next=None
 
         #Initialise the stations on oher lines to which it is connected:
-        self.connected={} #station: line_number
+        self.connected={} #station: length
 
 class Line:
 
@@ -200,18 +200,18 @@ class Stations_network:
 
             #print("unvisited", unvisited)
             #print("station", index, len(visited), self.n_stations)
-            print("intermediate", lines)
+            #print("intermediate", lines)
 
             if station.previous is not None:
 
                 while station.previous is not None:
                     station = station.previous
-                    print("previous loop", station.location)
+                    #print("previous loop", station.location)
 
                 ok =1
                 while ok==1:
 
-                    print("next loop", station.location, station.connected)
+                    #print("next loop", station.location, station.connected)
 
                     i = station.location[0] + size/2
                     j = station.location[1] + size/2
