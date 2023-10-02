@@ -1,26 +1,24 @@
 from typing import List, Dict
 import numpy as np
+import random
 
 def dijstra(V, E, source, end):
 
-    #print("V", V)
-    #print("E", E)
-
+    #print("initial E", E)
     visited=[]
-    distance={source:[0,None]}
+    distance={source:[0,None], end:[np.infty, None]}
     
     for u in V:
-        if u != source:
+        if u != source and u!=end:
             distance[u] = [np.infty, None]
 
-
+    
     unvisited=[u for u in V]
 
     study=source
 
-    while unvisited!=[]:
 
-        #print("STUDYING:", study.location)
+    while unvisited!=[]:
 
         #Find current distance from source
         dis=distance[study][0]
@@ -35,16 +33,20 @@ def dijstra(V, E, source, end):
 
             elif study==key[1]:
                 neighbours[key[0]]=E[key]
-                
-        #print("neighbours", neighbours)
+
 
         #Update the distance from source
         for key in neighbours:
 
             if key not in list(distance.keys()):
-                distance[key]=[dis+neighbours[key], study]
+                print("ATTENTION")
+                print(key.location, source.location, end.location)
+                print(key in V)
+                for edge in E:
+                    if key in edge:
+                        print("found in edge")
 
-            elif dis+neighbours[key]<distance[key][0]:
+            if dis+neighbours[key]<distance[key][0]:
                 distance[key]=[dis+neighbours[key], study]
 
         distance=dict(sorted(distance.items(), key=lambda item: item[1][0]))
@@ -60,6 +62,12 @@ def dijstra(V, E, source, end):
             if key in unvisited:
                 study=key
                 break
+
+    #if random.uniform(0,1)<0.05:
+        #print("V", V)
+        #print("E", E)
+        #print("distance", distance)
+        #print("neighbours", neighbours)
 
     return distance[end][0], distance
 

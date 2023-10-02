@@ -27,7 +27,6 @@ class Station(Point):
         super().__init__(i, j)
 
         self.line=None
-        self.neighbours={}
 
         #Initialise the sequence of stations
         self.previous=None 
@@ -63,7 +62,20 @@ class Stations_network:
 
     def set_neighbours(self, r:float, k:int):
         #For any station, find at most k neighbours within radius r. Neighbours are not necessarilly connected by a line
+        #Change this to be able to set the lines => just use the previous and next
+        for station_ind in range(len(self.all_stations)):
+            neighb = {}
+            if self.all_stations[station_ind].previous is not None:
+                neighb[self.all_stations[station_ind].previous]=euclidean(self.all_stations[station_ind].location, self.all_stations[station_ind].previous.location)
 
+            if self.all_stations[station_ind].next is not None:
+                neighb[self.all_stations[station_ind].next]=euclidean(self.all_stations[station_ind].location, self.all_stations[station_ind].next.location)
+
+            self.all_stations[station_ind].neighbours=neighb
+
+    def set_neighbours2(self, r:float, k:int):
+        #For any station, find at most k neighbours within radius r. Neighbours are not necessarilly connected by a line
+        #Change this to be able to set the lines==> Graph will be made from the lines
         for station_ind in range(len(self.all_stations)):
 
             neighbours={}
@@ -95,22 +107,33 @@ class Stations_network:
 
             V.append(station)
 
+
             if station.previous is not None:
                 if (station, station.previous) not in list(E.keys()) or (station.previous, station) not in list(E.keys()):
-                    E[(station, station.previous)]=speed_metro*euclidean(station.location, station.previous.location)
+                    E[(station, station.previous)]=euclidean(station.location, station.previous.location)/speed_metro
+                    #print("adding1", (station, station.previous))
+                    #print("add1", station.previous in list(self.all_stations.values()))
 
             if station.next is not None:
                 if (station, station.next) not in list(E.keys()) or (station.next, station) not in list(E.keys()):
-                    E[(station, station.next)]=speed_metro*euclidean(station.location, station.next.location)
+                    E[(station, station.next)]=euclidean(station.location, station.next.location)/speed_metro
+                    #print("adding2", (station, station.next))
+                    #print("add2", station.next in list(self.all_stations.values()))
 
             if station.connected!={}:
+                #print(station.connected)
                 for other in list(station.connected.keys()):
-
                     if (station, other) not in list(E.keys()) or (other, station) not in list(E.keys()):
-                        E[(station, other)]=speed_change*2
+                        E[(station, other)]=2/speed_change
+                        #print("adding3", (station, other))
+                        #print("add3", other in list(self.all_stations.values()))
+
 
             self.V=V
             self.E=E
+            #print("E", E)
+
+            
 
     def get_fastest(self, a: Point, b:Point, speed_metro, speed_change, speed_walk, r_walking, k_walking):
 
@@ -127,23 +150,25 @@ class Stations_network:
                 if euclidean(p.location, self.all_stations[station_ind].location)<=r_walking:
 
                     if len(list(neighbours.keys()))<k_walking:
-                        neighbours[station_ind]=euclidean(self.all_stations[station_ind].location, p.location)
+                        neighbours[station_ind]=euclidean(self.all_stations[station_ind].location, p.location)/speed_walk
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
                     elif euclidean(p.location, self.all_stations[station_ind].location)<list(neighbours.keys())[-1]:
                         del neighbours[list(neighbours.keys())[-1]]
-                        neighbours[station_ind]=euclidean(self.all_stations[station_ind].location, p.location)
+                        neighbours[station_ind]=euclidean(self.all_stations[station_ind].location, p.location)/speed_walk
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
                     
             all_neighbours.append(neighbours)
 
+        #print(all_neighbours)
+        #print("heelloooooo")
         #Now build the stations graph
         self.build_graph(speed_metro, speed_change)
 
         V=self.V
         E=self.E
-
+        #NNNNNNEEEDDDD TO SET NEIGBOURS 
         #Add the points into the stations graph
 
         V.append(a)
@@ -153,14 +178,13 @@ class Stations_network:
 
         for point in range(2):
             for neighb in all_neighbours[point]:
-                E[(points[point],neighb)]=all_neighbours[point][neighb]*speed_walk
+                #BE CAREFUL: neighbours is with indices
+                E[(points[point],self.all_stations[neighb])]=all_neighbours[point][neighb]/speed_walk
 
         #Run Dijstra on this graph and compare:
 
         metro_time, summary_metro=dijstra(V,E,a,b)
-        #print("HELLOOOOO")
-        #print(metro_time, summary_metro)
-        walking_time=euclidean(a.location, b.location)*speed_walk
+        walking_time=euclidean(a.location, b.location)/speed_walk
 
         return (walking_time, metro_time, summary_metro)
 
@@ -168,17 +192,29 @@ class Stations_network:
 
         self.n_stations+=1
         self.all_stations[self.n_stations-1]=Station(i,j)
+        print("new1", self.n_stations)
 
     def make_change_station(self, index:int):
 
         self.n_stations+=1
         self.all_stations[self.n_stations-1]=copy.deepcopy(self.all_stations[index])
+        print("new2", self.n_stations)
 
         self.all_stations[self.n_stations-1].previous=None
         self.all_stations[self.n_stations-1].next=None
 
-        self.all_stations[self.n_stations-1].connected[self.all_stations[index]]=2
         self.all_stations[index].connected[self.all_stations[self.n_stations-1]]=2
+
+        #Add to all connections
+        #Need this step of reconstituting the connected dictionary to help with the hashing
+        for connection in self.all_stations[index].connected:
+            connection.connected = {}
+            connection.connected[self.all_stations[index]] = 2
+            for other in self.all_stations[index].connected:
+                if other!=connection:
+                    connection.connected[other]=2
+
+            #print("if add", connection, connection.connected, connection in list(self.all_stations.values()))
 
     def display(self, size):
 
@@ -242,7 +278,7 @@ class Stations_network:
 
             if station.previous is None and station.next is None:
 
-                print("appart", station.location)
+                #print("appart", station.location)
 
                 i = station.location[0] + size/2
                 j = station.location[1] + size/2

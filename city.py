@@ -57,7 +57,7 @@ class Metropolis:
 
         
         self.frame=np.zeros((size,size)) #initialise the frame to empty map
-
+        
 
     def update_frame(self):
 
@@ -178,7 +178,8 @@ class Metropolis:
                 J=j+1
                 break
 
-        return (I,J)
+        mid = self.size/2
+        return (I-mid,J-mid)
 
 
     def new_round(self, p_center, p_others, p_new): 
