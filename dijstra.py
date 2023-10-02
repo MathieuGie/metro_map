@@ -5,7 +5,9 @@ import random
 def dijstra(V, E, source, end):
 
     #print("initial E", E)
+    #print("V", V)
     visited=[]
+    #Source and end can not belong to V
     distance={source:[0,None], end:[np.infty, None]}
     
     for u in V:
@@ -34,18 +36,8 @@ def dijstra(V, E, source, end):
             elif study==key[1]:
                 neighbours[key[0]]=E[key]
 
-
         #Update the distance from source
         for key in neighbours:
-
-            if key not in list(distance.keys()):
-                print("ATTENTION")
-                print(key.location, source.location, end.location)
-                print(key in V)
-                for edge in E:
-                    if key in edge:
-                        print("found in edge")
-
             if dis+neighbours[key]<distance[key][0]:
                 distance[key]=[dis+neighbours[key], study]
 
@@ -62,12 +54,6 @@ def dijstra(V, E, source, end):
             if key in unvisited:
                 study=key
                 break
-
-    #if random.uniform(0,1)<0.05:
-        #print("V", V)
-        #print("E", E)
-        #print("distance", distance)
-        #print("neighbours", neighbours)
 
     return distance[end][0], distance
 

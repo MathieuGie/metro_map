@@ -28,7 +28,6 @@ class Learner():
         #POLICY
         proba=np.random.uniform(0,1)
 
-
         if proba>epsilon:
             self.action=out.argmax()
         else:

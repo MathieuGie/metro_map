@@ -34,9 +34,9 @@ class Coordinator:
 
         #Metro params
 
+        self.starting_station = starting_station
         self.stations_network=Stations_network([starting_station])
-        self.learner=Learner(metro_params["k_stations"], gamma)
-         
+
         self.speed_metro=metro_params["speed_metro"]
         self.r_stations=metro_params["r_stations"]
         self.k_stations=metro_params["k_stations"]
@@ -45,14 +45,18 @@ class Coordinator:
         self.r_walking=metro_params["r_walking"]
         self.k_walking= metro_params["k_walking"]
 
-        self.info=torch.zeros((self.stations_network.n_stations, 13+4*self.k_stations)) #Will be a tensor stacking all info of each one of the stations
+        #Learner
+        self.learner=Learner(self.k_stations, gamma)
+
+        self.info=torch.zeros((self.stations_network.n_stations, 17+4*self.k_stations)) #Will be a tensor stacking all info of each one of the stations
 
         self.nn=nn(self.k_stations)
         self.nn_target=nn(self.k_stations)
 
         self.tau = tau
-
         self.optimiser =torch.optim.Adam(self.learner.prediction_nn.parameters(), lr=0.001)
+
+        self.average_reward = 0
 
 
     def get_stations_info(self, n_trips:int):
@@ -74,29 +78,37 @@ class Coordinator:
                 self.info[i, 2]=1
 
             if station.location[0]+15<self.size/2:
-                self.info[i, 3]=self.metropolis.frame[(station.location[0]+15, station.location[1])]
+                self.info[i, 3]=self.metropolis.density[(station.location[0]+15, station.location[1])]
 
             if station.location[1]+15<self.size/2:
-                self.info[i, 4]=self.metropolis.frame[(station.location[0], station.location[1]+15)]
+                self.info[i, 4]=self.metropolis.density[(station.location[0], station.location[1]+15)]
 
             if station.location[0]-15>-self.size/2:
-                self.info[i, 5]=self.metropolis.frame[(station.location[0]-15, station.location[1])]
+                self.info[i, 5]=self.metropolis.density[(station.location[0]-15, station.location[1])]
 
             if station.location[1]-15>-self.size/2:
-                self.info[i, 6]=self.metropolis.frame[(station.location[0], station.location[1]-15)]
+                self.info[i, 6]=self.metropolis.density[(station.location[0], station.location[1]-15)]
+
+            if station.location[0]+30<self.size/2:
+                self.info[i, 7]=self.metropolis.density[(station.location[0]+30, station.location[1])]
+
+            if station.location[1]+30<self.size/2:
+                self.info[i, 8]=self.metropolis.density[(station.location[0], station.location[1]+30)]
+
+            if station.location[0]-30>-self.size/2:
+                self.info[i, 9]=self.metropolis.density[(station.location[0]-30, station.location[1])]
+
+            if station.location[1]-30>-self.size/2:
+                self.info[i, 10]=self.metropolis.density[(station.location[0], station.location[1]-30)]
 
             n=0
             for neighb in station.neighbours:
-                self.info[i, 7+n*4]=station.location[0]-neighb.location[0]
-                self.info[i, 7+n*4+1]=station.location[1]-neighb.location[1]
-
-                #REMOVE line info later
-                if neighb.line == 0:
-                    self.info[i, 7+n*4+2]=1
+                self.info[i, 11+n*3]=station.location[0]-neighb.location[0]
+                self.info[i, 11+n*3+1]=station.location[1]-neighb.location[1]
 
                 #Can change this later
                 if station.connected!={}:
-                    self.info[i, 7+n*4+3]=1
+                    self.info[i, 11+n*3+2]=1
 
                 n+=1
 
@@ -132,21 +144,21 @@ class Coordinator:
                     if next==1 and (point!=initial and point!=final):
                         next=0
                         if walking_time < metro_time:
-                            self.info[reverse_stations[point],7+4*self.k_stations+2]+=1
+                            self.info[reverse_stations[point],11+3*self.k_stations+2]+=1
                         else:
-                            self.info[reverse_stations[point],7+4*self.k_stations+3]+=1
+                            self.info[reverse_stations[point],11+3*self.k_stations+3]+=1
 
                     if new==initial and (point!=initial and point!=final): #first station
                         if walking_time < metro_time:
-                            self.info[reverse_stations[point],7+4*self.k_stations]+=1
+                            self.info[reverse_stations[point],11+3*self.k_stations]+=1
                         else:
-                            self.info[reverse_stations[point],7+4*self.k_stations+1]+=1
+                            self.info[reverse_stations[point],11+3*self.k_stations+1]+=1
 
                     elif (point!=initial and point!=final): #Just a station through, can also be the final due to next
                         if walking_time < metro_time:
-                            self.info[reverse_stations[point],7+4*self.k_stations+4]+=1
+                            self.info[reverse_stations[point],11+3*self.k_stations+4]+=1
                         else:
-                            self.info[reverse_stations[point],7+4*self.k_stations+5]+=1
+                            self.info[reverse_stations[point],11+3*self.k_stations+5]+=1
 
                     point=new
                     #print("new:", new.location)
@@ -231,7 +243,7 @@ class Coordinator:
             self.stations_network.build_graph(self.speed_metro, self.speed_change)
             r=self.get_reward(self.stations_network.all_stations[index], 10)
         
-        print("r:", r)
+        #print("r:", r)
         return r
 
     def change_metropolis(self):
@@ -263,16 +275,25 @@ class Coordinator:
             if summary_metro[point][0] != np.infty and metro_time<walking_time:
                 while point!=initial:
 
+                    new_reward=0
+
                     new=summary_metro[point][1]
 
                     if point==final and new==station: #last station
-                        reward+=1
+                        new_reward+=1
 
                     elif new==initial and point==station: #first station
-                        reward+=1
+                        new_reward+=1
 
                     elif new==station: #Just a station through
-                        reward+=0.8
+                        new_reward+=0.8
+
+                    if 5*metro_time<walking_time:
+                        new_reward*=5
+                    elif 2*metro_time<walking_time:
+                        new_reward*=2
+
+                    reward+=new_reward
 
                     point = new
                 
@@ -303,7 +324,7 @@ class Coordinator:
         for i in range(n_selected):
 
             #Make state s: (needed at every new step because changes are made)
-            self.get_stations_info(50)
+            self.get_stations_info(100)
             state = self.info
 
             ind=i
@@ -333,7 +354,7 @@ class Coordinator:
             if action != 0 and actions_left<=0:
                 actions_left=0
                 action = 0
-                r = -1
+                r = 0.01
 
             #When action is playable
             else:
@@ -348,7 +369,7 @@ class Coordinator:
             remaining[0,0]=actions_left
 
             #Make state s':
-            self.get_stations_info(50)
+            self.get_stations_info(100)
             new_state = self.info
 
             new_row = new_state[i,:]
@@ -363,6 +384,8 @@ class Coordinator:
             else:
                 L += self.learner.get_loss()
 
+            self.average_reward+=r
+
         return L
 
     def step(self, n_iter:int):
@@ -374,7 +397,7 @@ class Coordinator:
 
             #self.get_stations_info(50)
 
-            L = self.feed_play(2, 2, 0.1)
+            L = self.feed_play(3, 2, 0.1)
             #This one also modifies the state of stations network and city
 
             self.backprop(L)
@@ -410,6 +433,32 @@ class Coordinator:
         # Show the plot
         plt.show()
 
+    
+    def reset(self, n_iter:int):
+
+        self.average_reward /= n_iter
+        out = self.average_reward
+
+        self.average_reward=0
+        self.time=0
+
+        central_city = City("hello", self.time, [[0,0]])
+
+        self.metropolis=Metropolis(central_city, [], self.time, self.size)
+
+        for _ in range(15):
+            self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
+
+        self.starting_station.previous=None
+        self.starting_station.next=None
+        self.starting_station.connected={}
+        self.stations_network=Stations_network([self.starting_station])
+
+        self.info=torch.zeros((self.stations_network.n_stations, 13+4*self.k_stations))
+
+        return out
+
+
 
 ###############################
 
@@ -419,8 +468,8 @@ metro_params={
     "speed_change" : 3,
     "speed_walk" : 1,
 
-    "r_stations" : 50,
-    "k_stations" : 4,
+    "r_stations" : 50, #Useless
+    "k_stations" : 2, #useless
 
     "r_walking" : 100,
     "k_walking" : 3,
@@ -435,8 +484,21 @@ city_params={
 
 coord = Coordinator("dummy", 500, Station(10, 5), metro_params, city_params, 0.3, 0.1)
 
-coord.step(5)
+all = []
+for i in range(20):
 
+    print("reset", i)
+    coord.step(6)
+    r = coord.reset(6)
+    print("r:", r)
+    #print(coord.stations_network.all_stations)
+    all.append(r)
+
+#Last one to plot:
+coord.step(6)
+
+
+print("all_rewards:", all)
 
 for station_ind in coord.stations_network.all_stations:
     print(coord.stations_network.all_stations[station_ind].location)

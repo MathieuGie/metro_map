@@ -56,7 +56,7 @@ class Stations_network:
             i+=1
 
         self.V=[]
-        self.E=[]
+        self.E={}
 
         self.display_lines = {}
 
@@ -100,6 +100,7 @@ class Stations_network:
 
         V=[]
         E={}
+        #print("all_stations", self.all_stations)
 
         for station_ind in self.all_stations:
 
@@ -168,7 +169,7 @@ class Stations_network:
 
         V=self.V
         E=self.E
-        #NNNNNNEEEDDDD TO SET NEIGBOURS 
+
         #Add the points into the stations graph
 
         V.append(a)
@@ -192,13 +193,13 @@ class Stations_network:
 
         self.n_stations+=1
         self.all_stations[self.n_stations-1]=Station(i,j)
-        print("new1", self.n_stations)
+        #print("new1", self.n_stations)
 
     def make_change_station(self, index:int):
 
         self.n_stations+=1
         self.all_stations[self.n_stations-1]=copy.deepcopy(self.all_stations[index])
-        print("new2", self.n_stations)
+        #print("new2", self.n_stations)
 
         self.all_stations[self.n_stations-1].previous=None
         self.all_stations[self.n_stations-1].next=None
