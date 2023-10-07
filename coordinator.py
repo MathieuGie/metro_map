@@ -48,7 +48,7 @@ class Coordinator:
         #Learner
         self.learner=Learner(self.k_stations, gamma)
 
-        self.info=torch.zeros((self.stations_network.n_stations, 17+4*self.k_stations)) #Will be a tensor stacking all info of each one of the stations
+        self.info=torch.zeros((self.stations_network.n_stations, 17+3*self.k_stations)) #Will be a tensor stacking all info of each one of the stations
 
         self.nn=nn(self.k_stations)
         self.nn_target=nn(self.k_stations)
@@ -63,7 +63,7 @@ class Coordinator:
 
         #First get geographical features (location, in main city or not...)
 
-        self.info=torch.zeros((self.stations_network.n_stations, 13+4*self.k_stations))
+        self.info=torch.zeros((self.stations_network.n_stations, 17+3*self.k_stations))
         self.stations_network.set_neighbours(self.r_stations, self.k_stations) #set neighbours for each station
 
         #print(self.info.shape)
@@ -77,29 +77,29 @@ class Coordinator:
             if station.location in self.metropolis.center.area:
                 self.info[i, 2]=1
 
-            if station.location[0]+15<self.size/2:
-                self.info[i, 3]=self.metropolis.density[(station.location[0]+15, station.location[1])]
+            if station.location[0]+15<self.size/2 and (station.location[0]+15, station.location[1]) in list(self.metropolis.density.keys()):
+                self.info[i, 3]=self.metropolis.density[(station.location[0]+15, station.location[1])][0]
 
-            if station.location[1]+15<self.size/2:
-                self.info[i, 4]=self.metropolis.density[(station.location[0], station.location[1]+15)]
+            if station.location[1]+15<self.size/2 and (station.location[0], station.location[1]+15) in list(self.metropolis.density.keys()):
+                self.info[i, 4]=self.metropolis.density[(station.location[0], station.location[1]+15)][0]
 
-            if station.location[0]-15>-self.size/2:
-                self.info[i, 5]=self.metropolis.density[(station.location[0]-15, station.location[1])]
+            if station.location[0]-15>-self.size/2 and (station.location[0]-15, station.location[1]) in list(self.metropolis.density.keys()):
+                self.info[i, 5]=self.metropolis.density[(station.location[0]-15, station.location[1])][0]
 
-            if station.location[1]-15>-self.size/2:
-                self.info[i, 6]=self.metropolis.density[(station.location[0], station.location[1]-15)]
+            if station.location[1]-15>-self.size/2 and (station.location[0], station.location[1]-15) in list(self.metropolis.density.keys()):
+                self.info[i, 6]=self.metropolis.density[(station.location[0], station.location[1]-15)][0]
 
-            if station.location[0]+30<self.size/2:
-                self.info[i, 7]=self.metropolis.density[(station.location[0]+30, station.location[1])]
+            if station.location[0]+30<self.size/2 and (station.location[0]+30, station.location[1]) in list(self.metropolis.density.keys()):
+                self.info[i, 7]=self.metropolis.density[(station.location[0]+30, station.location[1])][0]
 
-            if station.location[1]+30<self.size/2:
-                self.info[i, 8]=self.metropolis.density[(station.location[0], station.location[1]+30)]
+            if station.location[1]+30<self.size/2 and (station.location[0], station.location[1]+30) in list(self.metropolis.density.keys()):
+                self.info[i, 8]=self.metropolis.density[(station.location[0], station.location[1]+30)][0]
 
-            if station.location[0]-30>-self.size/2:
-                self.info[i, 9]=self.metropolis.density[(station.location[0]-30, station.location[1])]
+            if station.location[0]-30>-self.size/2 and (station.location[0]-30, station.location[1]) in list(self.metropolis.density.keys()):
+                self.info[i, 9]=self.metropolis.density[(station.location[0]-30, station.location[1])][0]
 
-            if station.location[1]-30>-self.size/2:
-                self.info[i, 10]=self.metropolis.density[(station.location[0], station.location[1]-30)]
+            if station.location[1]-30>-self.size/2 and (station.location[0], station.location[1]-30) in list(self.metropolis.density.keys()):
+                self.info[i, 10]=self.metropolis.density[(station.location[0], station.location[1]-30)][0]
 
             n=0
             for neighb in station.neighbours:
@@ -454,7 +454,7 @@ class Coordinator:
         self.starting_station.connected={}
         self.stations_network=Stations_network([self.starting_station])
 
-        self.info=torch.zeros((self.stations_network.n_stations, 13+4*self.k_stations))
+        self.info=torch.zeros((self.stations_network.n_stations, 17+3*self.k_stations))
 
         return out
 
@@ -485,7 +485,7 @@ city_params={
 coord = Coordinator("dummy", 500, Station(10, 5), metro_params, city_params, 0.3, 0.1)
 
 all = []
-for i in range(20):
+for i in range(100):
 
     print("reset", i)
     coord.step(6)
@@ -499,6 +499,7 @@ coord.step(6)
 
 
 print("all_rewards:", all)
+
 
 for station_ind in coord.stations_network.all_stations:
     print(coord.stations_network.all_stations[station_ind].location)

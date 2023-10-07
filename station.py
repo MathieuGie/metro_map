@@ -73,27 +73,6 @@ class Stations_network:
 
             self.all_stations[station_ind].neighbours=neighb
 
-    def set_neighbours2(self, r:float, k:int):
-        #For any station, find at most k neighbours within radius r. Neighbours are not necessarilly connected by a line
-        #Change this to be able to set the lines==> Graph will be made from the lines
-        for station_ind in range(len(self.all_stations)):
-
-            neighbours={}
-
-            for other_ind in range(len(self.all_stations)):
-                if station_ind!=other_ind and euclidean(self.all_stations[station_ind].location, self.all_stations[other_ind].location)<=r:
-
-                    if len(list(neighbours.keys()))<k:
-                        neighbours[self.all_stations[other_ind]]=euclidean(self.all_stations[station_ind].location, self.all_stations[other_ind].location)
-                        neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
-
-                    elif euclidean(self.all_stations[station_ind].location, self.all_stations[other_ind].location)<neighbours[list(neighbours.keys())[-1]]:
-                        del neighbours[list(neighbours.keys())[-1]]
-                        neighbours[self.all_stations[other_ind]]=euclidean(self.all_stations[station_ind].location, self.all_stations[other_ind].location)
-                        neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
-
-                    
-            self.all_stations[station_ind].neighbours=neighbours
 
     def build_graph(self, speed_metro, speed_change):
         #Makes the graph of stations

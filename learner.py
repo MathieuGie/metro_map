@@ -38,10 +38,10 @@ class Learner():
 
     def target(self, x: torch.tensor, r: int):
 
-        get_a=self.target_nn.forward(x)
+        get_a=self.prediction_nn.forward(x)
         self.action2=get_a.max(dim=1).indices
 
-        out2=self.prediction_nn.forward(x)
+        out2=self.target_nn.forward(x)
         self.out2=out2
 
         Q_next=out2[:,self.action2][0][0]
