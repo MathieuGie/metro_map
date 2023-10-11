@@ -48,7 +48,7 @@ class Coordinator:
         #Learner
         self.learner=Learner(self.k_stations, gamma)
 
-        self.info=torch.zeros((self.stations_network.n_stations, 17+3*self.k_stations)) #Will be a tensor stacking all info of each one of the stations
+        self.info=torch.zeros((self.stations_network.n_stations, 33+3*self.k_stations)) #Will be a tensor stacking all info of each one of the stations
 
         self.nn=nn(self.k_stations)
         self.nn_target=nn(self.k_stations)
@@ -63,7 +63,7 @@ class Coordinator:
 
         #First get geographical features (location, in main city or not...)
 
-        self.info=torch.zeros((self.stations_network.n_stations, 17+3*self.k_stations))
+        self.info=torch.zeros((self.stations_network.n_stations, 33+3*self.k_stations))
         self.stations_network.set_neighbours(self.r_stations, self.k_stations) #set neighbours for each station
 
         #print(self.info.shape)
@@ -74,9 +74,24 @@ class Coordinator:
             self.info[i, 0]=station.location[0]
             self.info[i, 1]=station.location[1]
 
+
             if station.location in self.metropolis.center.area:
                 self.info[i, 2]=1
 
+            neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2)]
+            scales = [15, 30, 60]
+            j=0
+
+            for neighb in neighbours:
+                for n in scales:
+                    
+                    if station.location[0]+n*neighb[0]<self.size/2 and station.location[0]+n*neighb[0]>-self.size/2 and station.location[1]+n*neighb[1]<self.size/2 and station.location[1]+n*neighb[1]>-self.size/2:
+                        if (station.location[0]+n*neighb[0], station.location[1]+n*neighb[1]) in list(self.metropolis.density.keys()):
+
+                            self.info[i, 3+j]=self.metropolis.density[(station.location[0]+n*neighb[0], station.location[1]+n*neighb[1])][0]
+
+                    j+=1
+            """
             if station.location[0]+15<self.size/2 and (station.location[0]+15, station.location[1]) in list(self.metropolis.density.keys()):
                 self.info[i, 3]=self.metropolis.density[(station.location[0]+15, station.location[1])][0]
 
@@ -100,17 +115,34 @@ class Coordinator:
 
             if station.location[1]-30>-self.size/2 and (station.location[0], station.location[1]-30) in list(self.metropolis.density.keys()):
                 self.info[i, 10]=self.metropolis.density[(station.location[0], station.location[1]-30)][0]
+            """
 
             n=0
-            for neighb in station.neighbours:
-                self.info[i, 11+n*3]=station.location[0]-neighb.location[0]
-                self.info[i, 11+n*3+1]=station.location[1]-neighb.location[1]
+            if station.previous is not None:
+                self.info[i, 27+n*3]=1/50*(station.location[0]-station.previous.location[0])
+            
+            if station.next is not None:
+                self.info[i, 27+n*3+1]=1/50*(station.location[1]-station.next.location[1])
 
-                #Can change this later
-                if station.connected!={}:
-                    self.info[i, 11+n*3+2]=1
+            if station.previous is not None or station.next is not None:
+                self.info[i, 27+n*3+2]=1
 
-                n+=1
+            n=1 #Because already seen for the station itself
+
+            if station.connected!={}:
+                for co in station.connected:
+
+
+                    if co.previous is not None:
+                        self.info[i, 27+n*3]=1/50*(co.location[0]-co.previous.location[0])
+                    
+                    if co.next is not None:
+                        self.info[i, 27+n*3+1]=1/50*(co.location[1]-co.next.location[1])
+
+                    if co.previous is not None or co.next is not None:
+                        self.info[i, 27+n*3+2]=1
+
+                    n+=1
 
             i+=1
 
@@ -144,21 +176,21 @@ class Coordinator:
                     if next==1 and (point!=initial and point!=final):
                         next=0
                         if walking_time < metro_time:
-                            self.info[reverse_stations[point],11+3*self.k_stations+2]+=1
+                            self.info[reverse_stations[point],27+3*self.k_stations+2]+=1
                         else:
-                            self.info[reverse_stations[point],11+3*self.k_stations+3]+=1
+                            self.info[reverse_stations[point],27+3*self.k_stations+3]+=1
 
                     if new==initial and (point!=initial and point!=final): #first station
                         if walking_time < metro_time:
-                            self.info[reverse_stations[point],11+3*self.k_stations]+=1
+                            self.info[reverse_stations[point],27+3*self.k_stations]+=1
                         else:
-                            self.info[reverse_stations[point],11+3*self.k_stations+1]+=1
+                            self.info[reverse_stations[point],27+3*self.k_stations+1]+=1
 
                     elif (point!=initial and point!=final): #Just a station through, can also be the final due to next
                         if walking_time < metro_time:
-                            self.info[reverse_stations[point],11+3*self.k_stations+4]+=1
+                            self.info[reverse_stations[point],27+3*self.k_stations+4]+=1
                         else:
-                            self.info[reverse_stations[point],11+3*self.k_stations+5]+=1
+                            self.info[reverse_stations[point],27+3*self.k_stations+5]+=1
 
                     point=new
                     #print("new:", new.location)
@@ -170,15 +202,27 @@ class Coordinator:
 
         r = None
         i,j=self.stations_network.all_stations[index].location
-        new_location=None
-
-        if action<8:
-            scale=10
-        else:
-            scale=25
+        new_location = None
 
         if action==0:
             r=0
+
+        neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2)]
+        scales = [10, 25, 50]
+        act = 0
+
+
+        for scale in scales:
+            for neighb in neighbours:
+                act+=1
+
+                if action == act:
+                    if i+scale*neighb[0]<self.size/2 and i+scale*neighb[0]>-self.size/2 and j+scale*neighb[1]<self.size/2 and j+scale*neighb[1]>-self.size/2:
+                        new_location = (i+scale*neighb[0],j+scale*neighb[1])
+
+        #if new_location is None:
+            #r = -1
+        """
         elif (action-1)%7==0 and i-scale>-self.size/2 and j-scale>-self.size/2:
             new_location = (i-scale,j-scale)
         elif (action-1)%7==1 and i-scale*np.sqrt(2)>-self.size/2:
@@ -193,29 +237,68 @@ class Coordinator:
             new_location = (i+scale*np.sqrt(2),j)
         elif (action-1)%7==6 and i+scale<self.size/2 and j-scale>-self.size/2:
             new_location = (i+scale,j-scale)
-
+        
         else:
             r=-1
+        """
 
-        #IF ADD A NEW STATION:
+        int_new_location = None
         if new_location is not None:
+            int_new_location = (int(new_location[0]), int(new_location[1]))
+
+
+        #Check that the new station is not already linked to the station itself or a connected version:
+        already_found=0
+        if self.stations_network.all_stations[index].previous is not None:
+            i_pos = int(self.stations_network.all_stations[index].previous.location[0])
+            j_pos = int(self.stations_network.all_stations[index].previous.location[1])
+            if (i_pos,j_pos) == int_new_location:
+                already_found=1
+
+        if self.stations_network.all_stations[index].next is not None:
+            i_pos = int(self.stations_network.all_stations[index].next.location[0])
+            j_pos = int(self.stations_network.all_stations[index].next.location[1])
+            if (i_pos,j_pos) == int_new_location:
+                already_found=1
+
+        if self.stations_network.all_stations[index].connected!={}:
+            for co in self.stations_network.all_stations[index].connected:
+
+                if co.previous is not None:
+                    i_pos = int(co.previous.location[0])
+                    j_pos = int(co.previous.location[1])
+                    if co.previous.location == int_new_location:
+                        already_found=1
+
+                if co.next is not None:
+                    i_pos = int(co.next.location[0])
+                    j_pos = int(co.next.location[1])
+                    if (i_pos, j_pos) == int_new_location:
+                        already_found=1
+
+        
+        #IF ADD A NEW STATION:
+        if new_location is not None and already_found==0: #Only add a new station if this new station not in the neeighbourhood already
             self.stations_network.make_new_station(int(new_location[0]), int(new_location[1]))
 
             #Also need to settle lines:
             if self.stations_network.all_stations[index].next is None:
+                print(new_location, "next of",self.stations_network.all_stations[index].location )
                 self.stations_network.all_stations[index].next = self.stations_network.all_stations[self.stations_network.n_stations-1]
                 self.stations_network.all_stations[self.stations_network.n_stations-1].previous = self.stations_network.all_stations[index]
 
             elif self.stations_network.all_stations[index].previous is None:
+                print(new_location, "previous of",self.stations_network.all_stations[index].location )
                 self.stations_network.all_stations[index].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
                 self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[index]
 
             else:
-
                 #If it is not a change station:
                 if self.stations_network.all_stations[index].connected == {}:
                     self.stations_network.make_change_station(index)
                     #settle the previous/ next with next interchange
+                    print(self.stations_network.all_stations[index].location, "became connection with next being", new_location)
+                    #########################
                     self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[self.stations_network.n_stations-2]
                     self.stations_network.all_stations[self.stations_network.n_stations-2].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
 
@@ -226,22 +309,28 @@ class Coordinator:
                             found=1
                             change.previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
                             self.stations_network.all_stations[self.stations_network.n_stations-1].next = change
+                            print(change.location, "found other with previous being", new_location)
 
                         elif change.next is None and found==0:
                             found=1
                             change.next = self.stations_network.all_stations[self.stations_network.n_stations-1]
                             self.stations_network.all_stations[self.stations_network.n_stations-1].previous = change
+                            print(change.location, "found other with next being", new_location)
 
-                    if found==0:
+                    if found==0 and len(list(self.stations_network.all_stations[index].connected))<self.k_stations:#Only add a new change station if less than k_stations connected togetther
                         self.stations_network.make_change_station(index)
+                        print("adding new connection of", self.stations_network.all_stations[self.stations_network.n_stations-1].location, "which has next:", new_location)
                         #settle the previous/ next with next interchange
                         self.stations_network.all_stations[self.stations_network.n_stations-1].next = self.stations_network.all_stations[self.stations_network.n_stations-2]
                         self.stations_network.all_stations[self.stations_network.n_stations-2].previous = self.stations_network.all_stations[self.stations_network.n_stations-1]
 
 
-        if r is None:
+        if r is None and already_found==0:
             self.stations_network.build_graph(self.speed_metro, self.speed_change)
             r=self.get_reward(self.stations_network.all_stations[index], 10)
+
+        elif r is None and already_found==1:
+            r=-0.1
         
         #print("r:", r)
         return r
@@ -324,7 +413,7 @@ class Coordinator:
         for i in range(n_selected):
 
             #Make state s: (needed at every new step because changes are made)
-            self.get_stations_info(100)
+            self.get_stations_info(500)
             state = self.info
 
             ind=i
@@ -369,7 +458,7 @@ class Coordinator:
             remaining[0,0]=actions_left
 
             #Make state s':
-            self.get_stations_info(100)
+            self.get_stations_info(500)
             new_state = self.info
 
             new_row = new_state[i,:]
@@ -397,7 +486,7 @@ class Coordinator:
 
             #self.get_stations_info(50)
 
-            L = self.feed_play(3, 2, 0.1)
+            L = self.feed_play(10, 2, 0.1)
             #This one also modifies the state of stations network and city
 
             self.backprop(L)
@@ -420,7 +509,7 @@ class Coordinator:
             for i in range(len(line)-1):
                 x_values = [line[i][0], line[i+1][0]]
                 y_values = [line[i][1], line[i+1][1]]
-                plt.plot(x_values, y_values, color, label=f"Line {key}" if i == 0 else "")
+                plt.plot(x_values, y_values, color, label=f"Line {key}" if i == 0 else "", marker="o")
 
         plt.colorbar(label='Density')
         plt.title('Density and Points')
@@ -464,38 +553,40 @@ class Coordinator:
 
 
 metro_params={
-    "speed_metro" : 10,
-    "speed_change" : 3,
+    "speed_metro" : 8,
+    "speed_change" : 2,
     "speed_walk" : 1,
 
     "r_stations" : 50, #Useless
-    "k_stations" : 2, #useless
+    "k_stations" : 5, #A change station has at most 5 connections
 
-    "r_walking" : 100,
-    "k_walking" : 3,
+    "r_walking" : 10,
+    "k_walking" : 2,
 }
 
 city_params={
     "p_center" : 0.3,
     "p_other" : 0.1,
-    "p_new" : 0.7,
+    "p_new" : 0.1,
     "p_growth" : 0.3,
 }
 
-coord = Coordinator("dummy", 500, Station(10, 5), metro_params, city_params, 0.3, 0.1)
+coord = Coordinator("dummy", 200, Station(10, 5), metro_params, city_params, 0.3, 0.1)
+
 
 all = []
-for i in range(100):
+"""
+for i in range(1):
 
     print("reset", i)
-    coord.step(6)
-    r = coord.reset(6)
+    coord.step(8)
+    r = coord.reset(8)
     print("r:", r)
     #print(coord.stations_network.all_stations)
     all.append(r)
-
+"""
 #Last one to plot:
-coord.step(6)
+coord.step(8)
 
 
 print("all_rewards:", all)

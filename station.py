@@ -176,6 +176,7 @@ class Stations_network:
 
     def make_change_station(self, index:int):
 
+        #Make the station at the given index connected to a new station and change all the connected for the connected stations to index
         self.n_stations+=1
         self.all_stations[self.n_stations-1]=copy.deepcopy(self.all_stations[index])
         #print("new2", self.n_stations)
@@ -209,6 +210,10 @@ class Stations_network:
 
         while len(visited)<self.n_stations:
 
+            print("algo of display")
+            print("visited", len(visited))
+            print("unvisited", len(unvisited))
+
             new_line=[]
             
             index = np.random.randint(len(unvisited))
@@ -237,15 +242,11 @@ class Stations_network:
                     new = []
                     seen = 0
                     for sta in unvisited:
-                        if seen==0:
-                            if sta.location!=station.location or sta.next!=station.next or sta.previous!=station.previous:
-                                new.append(sta)
-                                seen=1
-                        else:
+                        if sta!=station:
                             new.append(sta)
+                            seen=1
 
                     unvisited=new
-
                     visited.append(station)
 
                     if station.next is not None:
@@ -253,7 +254,6 @@ class Stations_network:
 
                     else: #No more station
                         ok=0
-
 
 
             if station.previous is None and station.next is None:
