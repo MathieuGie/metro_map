@@ -31,15 +31,21 @@ class Learner():
         if proba>epsilon:
             self.action=out.argmax()
         else:
-            self.action=int(np.random.randint(0,15))
+            self.action=int(np.random.randint(0,25))
+
+        #print("action", self.action)
 
         self.y_hat=out[:,self.action][0]
+
+        #print("y_hat", self.y)
 
 
     def target(self, x: torch.tensor, r: int):
 
         get_a=self.prediction_nn.forward(x)
         self.action2=get_a.max(dim=1).indices
+
+        #print("action2", self.action2)
 
         out2=self.target_nn.forward(x)
         self.out2=out2
@@ -48,6 +54,8 @@ class Learner():
 
         #y:     
         self.y=r+ self.gamma*Q_next
+
+        #print("y", self.y_hat)
 
 
     def get_loss(self):

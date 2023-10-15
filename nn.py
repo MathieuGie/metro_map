@@ -8,10 +8,10 @@ class nn(tnn.Module):
         super().__init__()
 
         self.fc1 = tnn.Linear(34+3*k, 240) #ALWAYS have size one more because add number of actions left
-        self.fc2 = tnn.Linear(240, 64)
-        self.fc3 = tnn.Linear(64, 25)
+        self.fc2 = tnn.Linear(240, 120)
+        self.fc3 = tnn.Linear(120, 25)
 
-        self.relu = tnn.ReLU()
+        self.relu = tnn.LeakyReLU()
 
     def forward(self, x):
 
