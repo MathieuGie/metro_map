@@ -318,7 +318,7 @@ class Coordinator:
             i_final, j_final = self.metropolis.pick_point()
             while euclidean((i_initial, j_initial),(i_final, j_final))<20:
                 i_initial, j_initial = self.metropolis.pick_point()
-                i_final, j_final = self.metropolis.pick_point()
+                #i_final, j_final = self.metropolis.pick_point()
             initial=Point(i_initial, j_initial)
             final=Point(i_final, j_final)
 
@@ -328,43 +328,15 @@ class Coordinator:
             #point=final
 
             if 5*metro_time<walking_time:
-                reward+=5
+                reward+=8
             elif 2*metro_time<walking_time:
-                reward+=2
+                reward+=2.5
             elif metro_time<walking_time:
                 reward+=1
-            elif 0.8*metro_time<walking_time:
+            elif 0.75*metro_time<walking_time:
                 reward+=0.1
-
-
-            #if summary_metro[point][0] != np.infty and metro_time<walking_time:
-
-                """
-                while point!=initial:
-
-                    new_reward=0
-
-                    new=summary_metro[point][1]
-
-                    if point==final and new==station: #last station
-                        new_reward+=1
-
-                    elif new==initial and point==station: #first station
-                        new_reward+=1
-
-                    elif new==station: #Just a station through
-                        new_reward+=0.8
-
-                """
-                    
-
-                    #reward+=new_reward
-
-                    #point = new
-
                 
                 
-
         return reward/n_trips
 
     def backprop(self, L):
@@ -537,9 +509,9 @@ metro_params={
     "speed_walk" : 1,
 
     "r_stations" : 50, #Useless
-    "k_stations" : 5, #A change station has at most 5 connections
+    "k_stations" : 3, #A change station has at most 5 connections
 
-    "r_walking" : 10,
+    "r_walking" : 15,
     "k_walking" : 2,
 }
 
@@ -556,12 +528,13 @@ coord = Coordinator("dummy", 200, Station(10, 5), metro_params, city_params, 0.9
 all = []
 
 
-for i in range(200):
+for i in range(10):
 
     print("reset", i)
     coord.step(6)
     r = coord.reset(6)
     print("r:", r)
+    print("epsilon:", coord.epsilon)
     #print(coord.stations_network.all_stations)
     all.append(r)
 

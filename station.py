@@ -87,15 +87,14 @@ class Stations_network:
 
             V.append(station)
 
-
             if station.previous is not None:
-                if (station, station.previous) not in list(E.keys()) or (station.previous, station) not in list(E.keys()):
+                if (station, station.previous) not in list(E.keys()) and (station.previous, station) not in list(E.keys()):
                     E[(station, station.previous)]=euclidean(station.location, station.previous.location)/speed_metro
                     #print("adding1", (station, station.previous))
                     #print("add1", station.previous in list(self.all_stations.values()))
 
             if station.next is not None:
-                if (station, station.next) not in list(E.keys()) or (station.next, station) not in list(E.keys()):
+                if (station, station.next) not in list(E.keys()) and (station.next, station) not in list(E.keys()):
                     E[(station, station.next)]=euclidean(station.location, station.next.location)/speed_metro
                     #print("adding2", (station, station.next))
                     #print("add2", station.next in list(self.all_stations.values()))
@@ -103,8 +102,8 @@ class Stations_network:
             if station.connected!={}:
                 #print(station.connected)
                 for other in list(station.connected.keys()):
-                    if (station, other) not in list(E.keys()) or (other, station) not in list(E.keys()):
-                        E[(station, other)]=2/speed_change
+                    if (station, other) not in list(E.keys()) and (other, station) not in list(E.keys()):
+                        E[(station, other)]=5/speed_change
                         #print("adding3", (station, other))
                         #print("add3", other in list(self.all_stations.values()))
 
@@ -159,7 +158,7 @@ class Stations_network:
         for point in range(2):
             for neighb in all_neighbours[point]:
                 #BE CAREFUL: neighbours is with indices
-                E[(points[point],self.all_stations[neighb])]=all_neighbours[point][neighb]/speed_walk
+                E[(points[point],self.all_stations[neighb])]=all_neighbours[point][neighb]
 
         #Run Dijstra on this graph and compare:
 
