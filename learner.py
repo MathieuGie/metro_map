@@ -42,18 +42,20 @@ class Learner():
 
     def target(self, x: torch.tensor, r: int):
 
-        get_a=self.prediction_nn.forward(x)
-        self.action2=get_a.max(dim=1).indices
+        with torch.no_grad():
 
-        #print("action2", self.action2)
+            get_a=self.prediction_nn.forward(x)
+            self.action2=get_a.max(dim=1).indices
 
-        out2=self.target_nn.forward(x)
-        self.out2=out2
+            #print("action2", self.action2)
 
-        Q_next=out2[:,self.action2][0][0]
+            out2=self.target_nn.forward(x)
+            self.out2=out2
 
-        #y:     
-        self.y=r+ self.gamma*Q_next
+            Q_next=out2[:,self.action2][0][0]
+
+            #y
+            self.y=r+ self.gamma*Q_next
 
         #print("y", self.y_hat)
 

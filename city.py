@@ -27,6 +27,8 @@ class City:
 
         self.center=center #fixed center of the city
         self.area=center #will grow over time
+        self.border=set()
+        self.border.add((center[0][0], center[0][1]))
 
 class Metropolis:
 
@@ -74,61 +76,71 @@ class Metropolis:
         #grows one city in the metropolis, not overlapping on other cities
 
         #index is the city index we care about
-
         neighbors=[[1,1],[1,0],[1,-1],[0,1],[0,-1],[-1,1],[-1,0],[-1,-1]]
-        new_pixels=[]
+        new_pixels = set()
 
+        
         #Determine if you are in the main city or not
         if index==0:
             p=p_center
         else:
             center=self.cities[index].center[0]
             d=np.sqrt(center[0]**2+center[1]**2)
-            #p=((1-p_others)/(np.sqrt(2)*250))*d+p_others
             p = p_others + p_others/(d*0.03)
 
         #Probabilistically grow the desired city
-        for pixel in self.cities[index].area:
+        remove_from_border=set()
+
+        print("01")
+        for pixel in self.cities[index].border:
+            still_bordering=0
+
             for new in neighbors:
 
-                possible=[new[0]+pixel[0], new[1]+pixel[1]]
+                possible=(new[0]+pixel[0], new[1]+pixel[1])
 
-                if random.uniform(0,1)<p: #< instead of >
-                    if (possible not in self.area) and (possible not in new_pixels):
+                if (possible not in self.area) and (possible not in new_pixels): #If the pixel still has possibility to add neigbouring pixel
+                    still_bordering=1
+
+                    if random.uniform(0,1)<p: 
                         if possible[0]<self.size/2 and possible[0]>-self.size/2 and possible[1]<self.size/2 and possible[1]>-self.size/2:
                             
-                            new_pixels.append(possible)
+                            new_pixels.add(possible)
 
-                            
+            if still_bordering==0:
+                remove_from_border.add(pixel)
 
-        #Then harmonise all the pixels of thee city:
+        self.cities[index].border-=remove_from_border
+        
+        print("02")
+        #Then harmonise all the pixels of the city:
         for pixel in self.cities[index].area:
-            for new in neighbors:
-                
-                possible=[new[0]+pixel[0], new[1]+pixel[1]]
-                possible_tuple = (new[0]+pixel[0], new[1]+pixel[1])
-                p_tilde=0
-                n=0
+            pixel_tuple = (pixel[0], pixel[1])
+            p_tilde = 0
+            n = 0
 
-                if possible in self.area:
-                    p_tilde+=self.density[possible_tuple][0]
-                    n+=1
+            if random.uniform(0, 1) < self.density[(pixel[0], pixel[1])][0]:
+                for new in neighbors:
+                    possible = (new[0] + pixel[0], new[1] + pixel[1])
 
-            if n!=0:
-                p_tilde/=n
+                    if possible in self.area:
+                        p_tilde += self.density[possible][0]
+                        n += 1
 
-            p = self.density[(pixel[0], pixel[1])][0]
-            city = self.density[(pixel[0], pixel[1])][1]
+                if n != 0:
+                    p_tilde /= n
 
-            if random.uniform(0,1)<p_tilde:
-                p += 0.01
+                p = self.density[pixel_tuple][0]
+                city = self.density[pixel_tuple][1]
 
-            if p>1:
-                p = 1
+                p += 0.005
 
-            self.density[(pixel[0], pixel[1])] = (p, city)
+                if p > 1:
+                    p = 1
 
-            
+                self.density[pixel_tuple] = (p, city)
+
+        print("03")
         for integrated in new_pixels:
 
             self.cities[index].area.append(integrated)
@@ -140,46 +152,25 @@ class Metropolis:
                 dens = (-0.5/360)*euclidean(integrated, [0,0])+0.5
                 self.density[(integrated[0], integrated[1])] = (dens, self.cities[index])
 
+        self.cities[index].border.update(new_pixels)
 
         self.time+=1
 
     def pick_point(self):
+        frame = self.frame
+        total_sum = np.sum(frame)
 
-        frame=self.frame
-        rows=np.cumsum(np.array([np.sum(frame, axis=1)/np.sum(frame)]), axis=1)[0]
+        rows_cumsum = np.cumsum(np.sum(frame, axis=1)) / total_sum
+        row = np.random.random()
+        I = np.searchsorted(rows_cumsum, row)
 
-        #print("rows:", rows)
 
-        row=np.random.random()
+        columns_cumsum = np.cumsum(frame[I]) / np.sum(frame[I])
+        col = np.random.random()
+        J = np.searchsorted(columns_cumsum, col)
 
-        for i in range(len(rows)):
-            if i==0 and row<rows[i]:
-                I=0
-                break
-            elif i==len(rows)-1:
-                I=len(rows)-1
-            elif rows[i]<=row and rows[i+1]>row:
-                I=i+1
-                break
-
-        columns=np.cumsum(np.array([(frame[I]/np.sum(frame[I]))]), axis=1)[0]
-
-        #print("columns", columns)
-
-        col=np.random.random()
-
-        for j in range(len(columns)):
-            if j==0 and col<columns[j]:
-                J=0
-                break
-            elif j==len(columns)-1:
-                J=len(columns)-1
-            elif columns[j]<=col and columns[j+1]>col:
-                J=j+1
-                break
-
-        mid = self.size/2
-        return (I-mid,J-mid)
+        mid = self.size / 2
+        return (I - mid, J - mid)
 
 
     def new_round(self, p_center, p_others, p_new): 

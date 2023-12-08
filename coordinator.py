@@ -291,7 +291,7 @@ class Coordinator:
 
         if r is None and already_found==0:
             self.stations_network.build_graph(self.speed_metro, self.speed_change)
-            r=self.get_reward(self.stations_network.all_stations[index], 500)
+            r=self.get_reward(self.stations_network.all_stations[index], 1000)
 
         elif r is None and already_found==1:
             r=-0.01
@@ -316,13 +316,12 @@ class Coordinator:
 
             i_initial, j_initial = self.metropolis.pick_point()
             i_final, j_final = self.metropolis.pick_point()
-            while euclidean((i_initial, j_initial),(i_final, j_final))<20:
+
+            while euclidean((i_initial, j_initial),(i_final, j_final))<30:
                 i_initial, j_initial = self.metropolis.pick_point()
-                #i_final, j_final = self.metropolis.pick_point()
+
             initial=Point(i_initial, j_initial)
             final=Point(i_final, j_final)
-
-            #print("initial:", initial.location, "final", final.location)
 
             walking_time, metro_time, summary_metro = self.stations_network.get_fastest(initial, final, self.speed_metro, self.speed_change, self.speed_walk, self.r_walking, self.k_walking)
             #point=final
@@ -339,7 +338,7 @@ class Coordinator:
                 
         return reward/n_trips
 
-    def backprop(self, L):
+    def backprop(self, L, time):
 
         #Backprop on nn
         self.optimiser.zero_grad()
@@ -347,8 +346,11 @@ class Coordinator:
         self.optimiser.step()
 
         #Update nn_target
-        for target_param, param in zip(self.learner.target_nn.parameters(), self.learner.prediction_nn.parameters()):
-            target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
+
+        if time%100==0:
+            print("UPDATING TARGET")
+            for target_param, param in zip(self.learner.target_nn.parameters(), self.learner.prediction_nn.parameters()):
+                target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
 
     def feed_play(self, n_selected:int, n_allowed_per_play: int, epsilon: float):
@@ -359,23 +361,27 @@ class Coordinator:
         actions_left=1 #this will decrease the more actions we deecide to do.
 
         #Select the desired station
-        done=[-1]
+        done=set()
+        done.add(-1) #Add a starting fake station
+
         for i in range(n_selected):
 
             #Make state s: (needed at every new step because changes are made)
             self.get_stations_info(500)
             state = self.info
 
-            ind=i
-            if i>=state.shape[0]:
-                break
-            elif n_selected<state.shape[0]: ###SMALLER
-
+            if n_selected<=state.shape[0]: ###SMALLER
                 ind=-1
                 while ind in done:
                     ind = np.random.randint(0, state.shape[0])
 
-            done.append(ind)
+            elif i==state.shape[0]: 
+                break
+
+            else:
+                ind=i
+
+            done.add(ind)
 
             #Play action:
             remaining=torch.zeros(1,1)
@@ -393,7 +399,7 @@ class Coordinator:
             if action != 0 and actions_left<=0:
                 actions_left=0
                 action = 0
-                r = 0.01
+                r = 0
 
             #When action is playable
             else:
@@ -401,6 +407,7 @@ class Coordinator:
                     actions_left-=1/n_allowed_per_play
 
                 r=self.change_network(i, action)
+
                 self.change_metropolis()
 
             ### REMAINING ###
@@ -427,7 +434,7 @@ class Coordinator:
 
         return L/n_selected #Need to divide
 
-    def step(self, n_iter:int):
+    def step(self, n_iter:int, time_target:int):
 
 
         for i in range(n_iter):
@@ -436,11 +443,11 @@ class Coordinator:
 
             #self.get_stations_info(50)
 
-            L = self.feed_play(8, 3, self.epsilon)
+            L = self.feed_play(10, 7, self.epsilon)
             #This one also modifies the state of stations network and city
-            self.epsilon*=0.9999
+            self.epsilon*=0.99975
 
-            self.backprop(L)
+            self.backprop(L, n_iter*time_target+self.time)
 
 
     def display(self):
@@ -509,7 +516,7 @@ metro_params={
     "speed_walk" : 1,
 
     "r_stations" : 50, #Useless
-    "k_stations" : 3, #A change station has at most 5 connections
+    "k_stations" : 3, #A change station has at most 3 connections
 
     "r_walking" : 15,
     "k_walking" : 2,
@@ -522,24 +529,37 @@ city_params={
     "p_growth" : 0.2,
 }
 
-coord = Coordinator("dummy", 200, Station(10, 5), metro_params, city_params, 0.95, 0.1, 1)
+coord = Coordinator("dummy", 200, Station(10, 5), metro_params, city_params, 0.95, 0.1, 0.98)
 
 
 all = []
+time_target=0
 
-
-for i in range(10):
+for i in range(0):
 
     print("reset", i)
-    coord.step(6)
+    coord.step(6, time_target)
+    time_target+=1
+
     r = coord.reset(6)
     print("r:", r)
     print("epsilon:", coord.epsilon)
     #print(coord.stations_network.all_stations)
     all.append(r)
 
+    # Generate your plot with the current state of your_list
+    plt.figure()
+    plt.plot(all)
+    plt.title('Rewards')
+    
+    # Save the figure to the same file location every time
+    plt.savefig('reward.png')
+    
+    # Close the figure to free memory
+    plt.close()
+
 #Last one to plot:
-coord.step(6)
+coord.step(6, time_target)
 
 
 print("all_rewards:", all)
