@@ -155,18 +155,32 @@ class Environment():
                 i_initial, j_initial = self.metropolis.pick_point()
 
             initial = (i_initial, j_initial)
-            final = (i_initial, j_initial)
+            final = (i_final, j_final)
 
             walking_time, metro_time, _ = self.metro.get_fastest(initial, final)
 
-            if 5*metro_time<walking_time:
-                reward+=20
+            if 12*metro_time<walking_time:
+                reward+=1.5
+            elif 8*metro_time<walking_time:
+                reward+=1.2
+            elif 7*metro_time<walking_time:
+                reward+=0.66
+            elif 6*metro_time<walking_time:
+                reward+=0.33
+            elif 4*metro_time<walking_time:
+                reward+=0.2
+            elif 3*metro_time<walking_time:
+                reward+=0.1
             elif 2*metro_time<walking_time:
-                reward+=8
+                reward-=0.1
             elif metro_time<walking_time:
-                reward+=3
+                reward-=0.2
             elif 0.75*metro_time<walking_time:
-                reward+=1
+                reward-=0.5
+            elif 0.5*metro_time<walking_time:
+                reward-=0.8
+            elif 0.1*metro_time<walking_time:
+                reward-=1.5
                 
                 
         return reward/self.n_simulations
@@ -174,12 +188,7 @@ class Environment():
     ################################################ 4.
     def reset(self):
 
-        self.first_station.previous=None
-        self.first_station.next=None
-        self.first_station.connected={}
-        self.stations_network=Stations_network([self.first_station])
-
-        self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new)
+        self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new, self.p_station)
         self.metro = Stations_network(self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking)
 
         for _ in range(10):

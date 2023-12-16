@@ -370,7 +370,7 @@ class Coordinator:
 
         #Update nn_target
 
-        if time%80==0:
+        if time%10==0:
             print("UPDATING TARGET")
             for target_param, param in zip(self.learner.target_nn.parameters(), self.learner.prediction_nn.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
@@ -558,7 +558,7 @@ metro_params={
     "speed_change" : 2,
     "speed_walk" : 1,
 
-    "r_stations" : 50, #Useless
+    "r_stations" : 15,
     "k_stations" : 3, #A change station has at most 3 connections
 
     "r_walking" : 15,
@@ -578,7 +578,7 @@ coord = Coordinator("dummy", 200, Station(0, 0), metro_params, city_params, 0.99
 all = []
 time_target=0
 
-for i in range(0):
+for i in range(1000):
 
     print("reset", i)
     coord.step(6, time_target)

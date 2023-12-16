@@ -45,9 +45,6 @@ class Metropolis:
 
         for city in self.all_cities:
 
-            #print("all ciies", self.all_cities, self.area)
-            #print("CITY", city.center, len(city.area), city.area)
-
             #Compute p of growing 
             if city == self.central_city:
                 p=self.p_center
@@ -63,21 +60,19 @@ class Metropolis:
                 dens = self.density[pixel][0]
                 n = 0
 
-                if np.random.uniform(0, 1)<p:
+                for new in neighbors:
+                    possible = (new[0] + pixel[0], new[1] + pixel[1])
 
-                    #if random.uniform(0, 1)<dens:
-                    for new in neighbors:
-                        possible = (new[0] + pixel[0], new[1] + pixel[1])
+                    if possible in self.area:
+                        p_tilde += self.density[possible][0]
+                        n += 1
 
-                        if possible in self.area:
-                            p_tilde += self.density[possible][0]
-                            n += 1
+                if n != 0:
+                    p_tilde /= n
 
-                    if n != 0:
-                        p_tilde /= n
+                if np.random.uniform(0, 1)<p_tilde:
 
                     self.density[pixel] = (0.7*p_tilde+0.3*dens+np.random.uniform(-0.01, 0.08), city)
-
 
             #Add neighbours
             new_pixels = set()
@@ -136,7 +131,7 @@ class Metropolis:
             #Grow the neighbours
             for neighb in neighbors:
                 possible=(location[0]+neighb[0], location[1]+neighb[1])
-                
+
                 if possible in self.area: 
 
                     dens, city = self.density[possible]

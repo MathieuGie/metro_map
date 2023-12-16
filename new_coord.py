@@ -17,12 +17,14 @@ class Coordinator:
         self.epsilon = learning_var["epsilon"]
         self.tau = learning_var["tau"]
         self.gamma = learning_var["gamma"]
+        self.update_target_interval = learning_var["update_target_interval"]
 
         self.learner = Learner(self.environment.max_connected, self.gamma)
 
 
         self.optimiser =torch.optim.Adam(self.learner.prediction_nn.parameters(), lr=0.001)
         self.average_reward = 0
+        self.total_reward = 0
         self.time = 0
 
         self.n_iter = n_iter
@@ -30,7 +32,6 @@ class Coordinator:
     
     def feed_play(self, n_selected:int, n_allowed_per_play: int):
 
-        self.time+=1
         L = None
         actions_left=1 #this will decrease the more actions we deecide to do.
 
@@ -38,23 +39,9 @@ class Coordinator:
         done=set()
         done.add(-1) #Add a starting fake station
 
-        for i in range(n_selected):
+        for _ in range(n_selected):
 
             #Make state s: (needed at every new step because changes are made)
-            """
-            if n_selected<=len(self.environment.metro.all_stations): 
-                ind=-1
-                while ind in done:
-                    ind = np.random.randint(0, len(self.environment.metro.all_stations))
-
-            elif i==len(self.environment.metro.all_stations): 
-                break
-
-            else:
-                ind=i
-
-            """
-
             station = self.environment.select_station()
             state = self.environment.make_state(station)
 
@@ -92,6 +79,7 @@ class Coordinator:
             ACTION = action
             REWARD = r
             self.average_reward+=r
+            self.total_reward+=1
 
             ### REMAINING ###
             remaining=torch.zeros(1,1)
@@ -137,7 +125,7 @@ class Coordinator:
 
         #Update nn_target
 
-        if time%80==0:
+        if time%self.update_target_interval==0:
             print("UPDATING TARGET")
             for target_param, param in zip(self.learner.target_nn.parameters(), self.learner.prediction_nn.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
@@ -148,17 +136,15 @@ class Coordinator:
 
             print("iteration_coord:", i)
 
-            #self.get_stations_info(50)
-
+            self.time+=1
             L = self.feed_play(10, 7)
-            #This one also modifies the state of stations network and city
             self.epsilon*=0.999
 
             self.backprop(L, self.n_iter*time_target+self.time)
 
     def reset(self):
 
-        self.average_reward /= self.n_iter
+        self.average_reward /= self.total_reward
         out = self.average_reward
 
         self.average_reward=0
@@ -217,24 +203,26 @@ city_params={
 }
 
 learning_var={
-    "epsilon":0.95,
-    "tau":0.1,
-    "gamma":0.8
+    "epsilon":0.90,
+    "tau":0.5,
+    "update_target_interval":20,
+    "gamma":0.9
+
 }
 
-coord = Coordinator(200, 500, (0,0), city_params, (0,0), metro_params, 1000, learning_var, 4)
+coord = Coordinator(200, 500, (0,0), city_params, (0,0), metro_params, 1000, learning_var, 6)
 
 
 all = []
 time_target=0
 
-for i in range(0):
+for i in range(1000):
 
     print("reset", i)
     coord.step(time_target)
-    time_target+=1
+    time_target+=1 #Keep track for the update of the target
 
-    r = coord.reset(6)
+    r = coord.reset()
     print("r:", r)
     print("epsilon:", coord.epsilon)
     #print(coord.stations_network.all_stations)

@@ -173,11 +173,6 @@ class Stations_network:
                     self.complete.add(station) #ONE DAY USE THIS TO LIMIT n of lines
 
 
-        #print(new.location)
-        #print("LINES", self.display(200))
-        #print("\n")
-
-
     ################################################ 3.
     def get_fastest(self, a, b):
 
@@ -192,25 +187,27 @@ class Stations_network:
                     if p not in done:
                         done.append(p)
         
-
                     if len(neighbours)<self.k_walking:
-                        neighbours[(p, station)]=euclidean(p, station.location)/self.speed_walk
+                        neighbours[(p, station.location)]=euclidean(p, station.location)/self.speed_walk
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
                     elif euclidean(p, station.location)<list(neighbours.values())[-1]:
                         del neighbours[list(neighbours.keys())[-1]]
-                        neighbours[(p, station)]=euclidean(p, station.location)/self.speed_walk
+                        neighbours[(p, station.location)]=euclidean(p, station.location)/self.speed_walk
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
         if len(done)!=2:
 
             walking_time=euclidean(a, b)/self.speed_walk
-
             return (walking_time, np.infty, None)
         
         else:
 
-            self.V = self.all_stations
+            self.V = set()
+
+            for s in self.all_stations:
+                self.V.add(s.location)
+
             self.V.add(a)
             self.V.add(b)
 
@@ -220,15 +217,15 @@ class Stations_network:
                 
                 station = self.lines[line].starting
   
-                while station is not None:
+                while station is not None and station.next is not None:
 
-                    if (station, station.next) not in list(self.E.keys()) and (station.next, station) not in list(self.E.keys()):
-                        self.E[(station, station.next)]=euclidean(station.location, station.next.location)/self.speed_metro
+                    if (station.location, station.next.location) not in list(self.E.keys()) and (station.next.location, station.location) not in list(self.E.keys()):
+                        self.E[(station.location, station.next.location)]=euclidean(station.location, station.next.location)/self.speed_metro
 
                     if station.connected!=set():
                         for co in station.connected:
-                            if (station, co) not in list(self.E.keys()) and (co, station) not in list(self.E.keys()):
-                                self.E[(station, co)]=5/self.speed_change
+                            if (station.location, co.location) not in list(self.E.keys()) and (co.location, station.location) not in list(self.E.keys()):
+                                self.E[(station.location, co.location)]=5/self.speed_change
 
                     station = station.next
 
@@ -237,7 +234,7 @@ class Stations_network:
 
             #Run Dijstra on this graph and compare:
             metro_time, summary_metro=dijstra(self.V,self.E,a,b)
-            walking_time=euclidean(a.location, b.location)/self.speed_walk
+            walking_time=euclidean(a, b)/self.speed_walk
 
             return (walking_time, metro_time, summary_metro)
         

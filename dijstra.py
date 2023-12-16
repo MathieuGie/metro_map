@@ -1,11 +1,9 @@
 from typing import List, Dict
 import numpy as np
-import random
 
 def dijstra(V, E, source, end):
 
-    #print("initial E", E)
-    #print("V", V)
+
     visited=[]
     #Source and end can not belong to V
     distance={source:[0,None], end:[np.infty, None]}
@@ -16,9 +14,7 @@ def dijstra(V, E, source, end):
 
     
     unvisited=[u for u in V]
-
     study=source
-
 
     while unvisited!=[]:
 
@@ -38,11 +34,11 @@ def dijstra(V, E, source, end):
 
         #Update the distance from source
         for key in neighbours:
+
             if dis+neighbours[key]<distance[key][0]:
                 distance[key]=[dis+neighbours[key], study]
 
         distance=dict(sorted(distance.items(), key=lambda item: item[1][0]))
-        #print("distance", distance)
 
         #Choose what to study next and update visited and unvisited:
         #print("remove", study, unvisited)
