@@ -39,6 +39,11 @@ class Learner():
 
         #print("y_hat", self.y)
 
+    def predict_for_replay(self, x: torch.tensor, action: int):
+
+        out = self.prediction_nn.forward(x)
+        self.y_hat=out[:,action][0]
+
 
     def target(self, x: torch.tensor, r: int):
 

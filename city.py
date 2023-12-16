@@ -13,11 +13,10 @@ def gaussian_filter(size, sigma): #usually put sigma to 3
     g = np.exp(-((x**2 + y**2)/(2.0*sigma**2)))
     return g / g.sum()
 
-def euclidean(a,b):
-    result=0
-    for i in range(2):
-        result+=(a[i]-b[i])**2
-    return np.sqrt(result)
+def euclidean(a, b):
+    a = np.array(a)
+    b = np.array(b)
+    return np.sqrt(np.sum((a - b) ** 2, axis=-1))
 
 class City:
 
@@ -26,7 +25,10 @@ class City:
         self.time=time
 
         self.center=center #fixed center of the city
-        self.area=center #will grow over time
+
+        self.area=set()
+        self.area.add((center[0][0], center[0][1]))
+
         self.border=set()
         self.border.add((center[0][0], center[0][1]))
 
@@ -45,17 +47,17 @@ class Metropolis:
         self.time=time
         self.size=size
 
-        self.area=[] #area of the whole metropolis (all the cities counted)
+        self.area=set() #area of the whole metropolis (all the cities counted)
         self.density = {}
 
         for city in self.cities:
             for pixel in city.area:
-                self.area.append(pixel)
+                self.area.add(pixel)
 
+                p_city=0.3
                 if city == central_city:
-                    self.density[(pixel[0], pixel[1])] = (0.5, city)
-                else:
-                    self.density[(pixel[0], pixel[1])] = (0.3, city)
+                    p_city=0.5
+                self.density[pixel] = (p_city, city)
 
         
         self.frame=np.zeros((size,size)) #initialise the frame to empty map
@@ -91,7 +93,6 @@ class Metropolis:
         #Probabilistically grow the desired city
         remove_from_border=set()
 
-        print("01")
         for pixel in self.cities[index].border:
             still_bordering=0
 
@@ -112,14 +113,13 @@ class Metropolis:
 
         self.cities[index].border-=remove_from_border
         
-        print("02")
         #Then harmonise all the pixels of the city:
         for pixel in self.cities[index].area:
-            pixel_tuple = (pixel[0], pixel[1])
+            #pixel_tuple = (pixel[0], pixel[1])
             p_tilde = 0
             n = 0
 
-            if random.uniform(0, 1) < self.density[(pixel[0], pixel[1])][0]:
+            if random.uniform(0, 1) < self.density[pixel][0]:
                 for new in neighbors:
                     possible = (new[0] + pixel[0], new[1] + pixel[1])
 
@@ -130,27 +130,26 @@ class Metropolis:
                 if n != 0:
                     p_tilde /= n
 
-                p = self.density[pixel_tuple][0]
-                city = self.density[pixel_tuple][1]
+                p = self.density[pixel][0]
+                city = self.density[pixel][1]
 
-                p += 0.005
+                p += 0.01
 
                 if p > 1:
                     p = 1
 
-                self.density[pixel_tuple] = (p, city)
+                self.density[pixel] = (p, city)
 
-        print("03")
         for integrated in new_pixels:
 
-            self.cities[index].area.append(integrated)
-            self.area.append(integrated)
+            self.cities[index].area.add(integrated)
+            self.area.add(integrated)
 
             if index==0:
-                self.density[(integrated[0], integrated[1])] = (0.5, self.cities[index])
+                self.density[integrated] = (0.5, self.cities[index])
             else:
                 dens = (-0.5/360)*euclidean(integrated, [0,0])+0.5
-                self.density[(integrated[0], integrated[1])] = (dens, self.cities[index])
+                self.density[integrated] = (dens, self.cities[index])
 
         self.cities[index].border.update(new_pixels)
 
@@ -192,7 +191,7 @@ class Metropolis:
                 while ok==False:
                     i=np.random.randint(-mid,mid)
                     j=np.random.randint(-mid,mid)
-                    new_center=[i,j]
+                    new_center=(i,j)
                     if new_center not in self.area:
                         ok=True
                         self.cities.append(City("hello"+str(self.time), self.time, [new_center]))
@@ -211,27 +210,26 @@ class Metropolis:
 
             for neighb in neighbors:
 
-                possible=[station.location[0]+neighb[0], station.location[1]+neighb[1]]
-                possible_tuple = (station.location[0]+neighb[0], station.location[1]+neighb[1])
+                possible=(station.location[0]+neighb[0], station.location[1]+neighb[1])
 
                 if (possible in self.area) and (random.uniform(0,1)<p_growth): 
-                    p, city = self.density[possible_tuple]
-                    p+=0.01
+                    p, city = self.density[possible]
+                    p+=0.02
 
                     if p>1:
                         p=1
 
-                    self.density[possible_tuple] = (p,city)
+                    self.density[possible] = (p,city)
 
                 if (possible not in self.area) and (random.uniform(0,1)<p_growth):
                     if possible[0]<self.size/2 and possible[0]>-self.size/2 and possible[1]<self.size/2 and possible[1]>-self.size/2:
 
-                        self.area.append(possible)
+                        self.area.add(possible)
 
                         if city_station == self.cities[0]:
-                            self.density[possible_tuple]=(0.5, city_station)
+                            self.density[possible]=(0.5, city_station)
                         else:
-                            self.density[possible_tuple]=(p_station, city_station)
+                            self.density[possible]=(p_station, city_station)
 
         elif random.uniform(0,1)<p_growth:
 

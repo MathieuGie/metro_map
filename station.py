@@ -60,7 +60,7 @@ class Stations_network:
 
         self.display_lines = {}
 
-    def set_neighbours(self, r:float, k:int):
+    def set_neighbours(self):
         #For any station, find at most k neighbours within radius r. Neighbours are not necessarilly connected by a line
         #Change this to be able to set the lines => just use the previous and next
         for station_ind in range(len(self.all_stations)):

@@ -5,16 +5,33 @@ from nn import nn
 
 import matplotlib.pyplot as plt
 
+from collections import deque
 from dijstra import dijstra
 import torch 
 import numpy as np
 import random
 
-def euclidean(a,b):
-    result=0
-    for i in range(2):
-        result+=(a[i]-b[i])**2
-    return np.sqrt(result)
+def euclidean(a, b):
+    a = np.array(a)
+    b = np.array(b)
+    return np.sqrt(np.sum((a - b) ** 2, axis=-1))
+
+
+
+class ReplayBuffer:
+    def __init__(self, capacity):
+        self.buffer = deque(maxlen=capacity)
+
+    def push(self, experience):
+        # Adds an experience to the buffer. Oldest experiences are automatically dropped if capacity is reached.
+        self.buffer.append(experience)
+
+    def sample(self, batch_size):
+        # Randomly samples a batch of experiences from the buffer.
+        return random.sample(self.buffer, min(batch_size, len(self.buffer)))
+
+    def __len__(self):
+        return len(self.buffer)
 
 
 class Coordinator:
@@ -65,13 +82,15 @@ class Coordinator:
 
         self.average_reward = 0
 
+        self.buffer = ReplayBuffer(1000)
+
 
     def get_stations_info(self, n_trips:int):
 
         #First get geographical features (location, in main city or not...)
 
         self.info=torch.zeros((self.stations_network.n_stations, 33+3*self.k_stations))
-        self.stations_network.set_neighbours(self.r_stations, self.k_stations) #set neighbours for each station
+        self.stations_network.set_neighbours() #set neighbours for each station
 
         #print(self.info.shape)
         for i in self.stations_network.all_stations:
@@ -85,7 +104,7 @@ class Coordinator:
             if station.location in self.metropolis.center.area:
                 self.info[i, 2]=1
 
-            neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2)]
+            neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
             scales = [15, 25, 50]
             j=0
 
@@ -93,13 +112,17 @@ class Coordinator:
                 for n in scales:
                     
                     if station.location[0]+n*neighb[0]<self.size/2 and station.location[0]+n*neighb[0]>-self.size/2 and station.location[1]+n*neighb[1]<self.size/2 and station.location[1]+n*neighb[1]>-self.size/2:
+                        #print((station.location[0]+int(n*neighb[0]), station.location[1]+int(n*neighb[1])))
                         if (station.location[0]+int(n*neighb[0]), station.location[1]+int(n*neighb[1])) in list(self.metropolis.density.keys()):
-
+                            #print("yes")
                             self.info[i, 3+j]=self.metropolis.density[(station.location[0]+int(n*neighb[0]), station.location[1]+int(n*neighb[1]))][0]
-
                     j+=1
 
             n=0
+            #print("before")
+            #print(self.metropolis.density)
+            #print(self.metropolis.frame[station.location[0]-8:station.location[0]+8, station.location[1]-8:station.location[1]+8])
+            #print(self.info[i,:])
             if station.previous is not None:
                 self.info[i, 27+n*3]=1/50*(station.location[0]-station.previous.location[0])
             
@@ -192,7 +215,7 @@ class Coordinator:
         if action==0:
             r=0.01
 
-        neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2)]
+        neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
         scales = [10, 25, 50]
         act = 0
 
@@ -291,7 +314,7 @@ class Coordinator:
 
         if r is None and already_found==0:
             self.stations_network.build_graph(self.speed_metro, self.speed_change)
-            r=self.get_reward(self.stations_network.all_stations[index], 1000)
+            r=self.get_reward(self.stations_network.all_stations[index], 2000)
 
         elif r is None and already_found==1:
             r=-0.01
@@ -301,11 +324,11 @@ class Coordinator:
 
     def change_metropolis(self):
 
-        self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
+        #self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
 
         for index in self.stations_network.all_stations:
             
-            if random.uniform(0,1)<0.5: #Don't grow stations everytime
+            if random.uniform(0,1)<0.7: #Don't grow stations everytime
                 self.metropolis.grow_station(self.stations_network.all_stations[index], self.p_growth)
 
     def get_reward(self, station: Station, n_trips:int): 
@@ -317,7 +340,7 @@ class Coordinator:
             i_initial, j_initial = self.metropolis.pick_point()
             i_final, j_final = self.metropolis.pick_point()
 
-            while euclidean((i_initial, j_initial),(i_final, j_final))<30:
+            while euclidean((i_initial, j_initial),(i_final, j_final))<20:
                 i_initial, j_initial = self.metropolis.pick_point()
 
             initial=Point(i_initial, j_initial)
@@ -327,13 +350,13 @@ class Coordinator:
             #point=final
 
             if 5*metro_time<walking_time:
-                reward+=8
+                reward+=20
             elif 2*metro_time<walking_time:
-                reward+=2.5
+                reward+=8
             elif metro_time<walking_time:
-                reward+=1
+                reward+=3
             elif 0.75*metro_time<walking_time:
-                reward+=0.1
+                reward+=1
                 
                 
         return reward/n_trips
@@ -347,7 +370,7 @@ class Coordinator:
 
         #Update nn_target
 
-        if time%100==0:
+        if time%80==0:
             print("UPDATING TARGET")
             for target_param, param in zip(self.learner.target_nn.parameters(), self.learner.prediction_nn.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
@@ -367,7 +390,7 @@ class Coordinator:
         for i in range(n_selected):
 
             #Make state s: (needed at every new step because changes are made)
-            self.get_stations_info(500)
+            self.get_stations_info(1000)
             state = self.info
 
             if n_selected<=state.shape[0]: ###SMALLER
@@ -410,6 +433,12 @@ class Coordinator:
 
                 self.change_metropolis()
 
+            STATE = vec
+            print(STATE)
+            ACTION = action
+            REWARD = r
+            self.average_reward+=r
+
             ### REMAINING ###
             remaining=torch.zeros(1,1)
             remaining[0,0]=actions_left
@@ -422,6 +451,10 @@ class Coordinator:
             new_row = new_row.reshape(1,-1)
 
             vec = torch.cat((remaining, new_row), axis=1)
+
+            NSTATE = vec
+            self.buffer.push((STATE, ACTION, REWARD, NSTATE))
+
             self.learner.target(vec, r)
 
             if L is None:
@@ -430,9 +463,19 @@ class Coordinator:
             else:
                 L += self.learner.get_loss()
 
-            self.average_reward+=r
+            ###Now sample:
 
-        return L/n_selected #Need to divide
+            samples = self.buffer.sample(64)
+
+            for sample in samples:
+
+                self.learner.predict_for_replay(sample[0], sample[1])
+                self.learner.target(sample[3], sample[2])
+                L+=self.learner.get_loss()
+
+        
+        self.metropolis.new_round(self.p_center, self.p_other, self.p_new)
+        return L/(n_selected+64) #Need to divide
 
     def step(self, n_iter:int, time_target:int):
 
@@ -445,7 +488,7 @@ class Coordinator:
 
             L = self.feed_play(10, 7, self.epsilon)
             #This one also modifies the state of stations network and city
-            self.epsilon*=0.99975
+            self.epsilon*=0.999
 
             self.backprop(L, n_iter*time_target+self.time)
 
@@ -526,10 +569,10 @@ city_params={
     "p_center" : 0.2,
     "p_other" : 0.1,
     "p_new" : 0.1,
-    "p_growth" : 0.2,
+    "p_growth" : 0.5,
 }
 
-coord = Coordinator("dummy", 200, Station(10, 5), metro_params, city_params, 0.95, 0.1, 0.98)
+coord = Coordinator("dummy", 200, Station(0, 0), metro_params, city_params, 0.99, 0.4, 0.98)
 
 
 all = []
@@ -559,7 +602,7 @@ for i in range(0):
     plt.close()
 
 #Last one to plot:
-coord.step(6, time_target)
+coord.step(10, time_target)
 
 
 print("all_rewards:", all)
