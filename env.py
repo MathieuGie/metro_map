@@ -52,7 +52,7 @@ class Environment():
         self.p_selecting_station = metro_facts["p_selecting_station"]
 
         self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new, self.p_station)
-        self.metro = Stations_network(self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking)
+        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking)
 
         for _ in range(10):
             self.metropolis.step(self.at_most_new)
@@ -159,29 +159,29 @@ class Environment():
 
             walking_time, metro_time, _ = self.metro.get_fastest(initial, final)
 
-            if 12*metro_time<walking_time:
-                reward+=1.5
-            elif 8*metro_time<walking_time:
+
+            if 8*metro_time<walking_time:
                 reward+=1.2
+            elif 7.5*metro_time<walking_time:
+                reward+=1
             elif 7*metro_time<walking_time:
-                reward+=0.66
+                reward+=0.85
             elif 6*metro_time<walking_time:
-                reward+=0.33
-            elif 4*metro_time<walking_time:
+                reward+=0.66
+            elif 5*metro_time<walking_time:
                 reward+=0.2
-            elif 3*metro_time<walking_time:
-                reward+=0.1
-            elif 2*metro_time<walking_time:
-                reward-=0.1
-            elif metro_time<walking_time:
+            elif 4*metro_time<walking_time:
                 reward-=0.2
-            elif 0.75*metro_time<walking_time:
+            elif 3*metro_time<walking_time:
                 reward-=0.5
+            elif 2*metro_time<walking_time:
+                reward-=0.7
+            elif metro_time<walking_time:
+                reward-=1
             elif 0.5*metro_time<walking_time:
-                reward-=0.8
-            elif 0.1*metro_time<walking_time:
-                reward-=1.5
-                
+                reward-=1.2
+            else:
+                reward-=2
                 
         return reward/self.n_simulations
     
@@ -189,7 +189,7 @@ class Environment():
     def reset(self):
 
         self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new, self.p_station)
-        self.metro = Stations_network(self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking)
+        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking)
 
         for _ in range(10):
             self.metropolis.step(self.at_most_new)

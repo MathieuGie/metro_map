@@ -15,6 +15,7 @@ class Coordinator:
         self.buffer = ReplayBuffer(buffer_size)
 
         self.epsilon = learning_var["epsilon"]
+        self.epsilon_decay = learning_var["epsilon_decay"]
         self.tau = learning_var["tau"]
         self.gamma = learning_var["gamma"]
         self.update_target_interval = learning_var["update_target_interval"]
@@ -138,7 +139,7 @@ class Coordinator:
 
             self.time+=1
             L = self.feed_play(10, 7)
-            self.epsilon*=0.999
+            self.epsilon*=self.epsilon_decay
 
             self.backprop(L, self.n_iter*time_target+self.time)
 
@@ -159,7 +160,7 @@ class Coordinator:
         frame = self.environment.metropolis.display()
         plt.imshow(frame, cmap='viridis', origin='lower')
 
-        LINES = self.environment.metro.display(self.environment.size)
+        LINES = self.environment.metro.display(True)
         print(LINES)
 
         # Predefined list of colors.
@@ -187,12 +188,12 @@ metro_params={
     "speed_change" : 2,
     "speed_walk" : 1,
 
-    "max_connected" : 2, #A change station has at most 3 connections
+    "max_connected" : 2, # A change station has at most 2 connections
 
-    "r_walking" : 15,
+    "r_walking" : 40,
     "k_walking" : 2,
 
-    "p_selecting_station":0.66 #change of prolongating a line instead of randomly selecting a station
+    "p_selecting_station":0.66 # chance of prolongating a line instead of randomly selecting a station
 }
 
 city_params={
@@ -203,10 +204,11 @@ city_params={
 }
 
 learning_var={
-    "epsilon":0.90,
-    "tau":0.5,
+    "epsilon":0.95,
+    "epsilon_decay":0.999,
+    "tau":0.6,
     "update_target_interval":20,
-    "gamma":0.9
+    "gamma":0.98
 
 }
 

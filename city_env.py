@@ -71,7 +71,6 @@ class Metropolis:
                     p_tilde /= n
 
                 if np.random.uniform(0, 1)<p_tilde:
-
                     self.density[pixel] = (0.7*p_tilde+0.3*dens+np.random.uniform(-0.01, 0.08), city)
 
             #Add neighbours

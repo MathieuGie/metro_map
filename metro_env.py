@@ -1,8 +1,10 @@
 import numpy as np
 import copy
+import networkx as nx
+import matplotlib.pyplot as plt
 
 #from city import euclidean
-from dijstra import dijstra
+from dijkstra import dijkstra
 
 def euclidean(a, b):
     a = np.array(a)
@@ -35,8 +37,9 @@ class Line:
 
 class Stations_network:
 
-    def __init__(self, initial, max_connected:int, speed_walk, speed_metro, speed_change, r_walking, k_walking):
+    def __init__(self, size, initial, max_connected:int, speed_walk, speed_metro, speed_change, r_walking, k_walking):
 
+        self.size=size
         initial_station = Station(initial[0], initial[1])
 
         self.all_stations=[initial_station]
@@ -68,7 +71,7 @@ class Stations_network:
 
             new = Station(station.location[0], station.location[1])
 
-            new.connected = station.connected
+            new.connected = copy.deepcopy(station.connected)
             new.connected.add(station)
 
             for co in set(station.connected):
@@ -84,9 +87,10 @@ class Stations_network:
     def make_new_station(self, station, i, j):
 
         new = Station(i,j)
+        L = self.display(frame=False)
 
         #Previous
-        if station.previous is None:
+        if station.previous is None and new.location not in L[station.line]:
             station.previous=new
             new.next = station
             new.line = station.line
@@ -99,7 +103,7 @@ class Stations_network:
             #print("adding previous", station.location, new.location)
 
         #Next
-        elif station.next is None:
+        elif station.next is None and new.location not in L[station.line]:
             station.next=new
             new.previous=station
             new.line = station.line
@@ -118,7 +122,7 @@ class Stations_network:
             if station.connected!=set():
                 for co in set(station.connected):
 
-                    if found==0 and co.previous is None:
+                    if found==0 and co.previous is None and new.location not in L[co.line]:
                         found=1
                         co.previous=new
                         new.next = co
@@ -132,7 +136,7 @@ class Stations_network:
                         self.all_stations.append(new)
 
 
-                    if found==0 and co.next is None:
+                    if found==0 and co.next is None and new.location not in L[co.line]:
                         found=1
                         co.next=new
                         new.previous=co
@@ -188,12 +192,12 @@ class Stations_network:
                         done.append(p)
         
                     if len(neighbours)<self.k_walking:
-                        neighbours[(p, station.location)]=euclidean(p, station.location)/self.speed_walk
+                        neighbours[(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
                     elif euclidean(p, station.location)<list(neighbours.values())[-1]:
                         del neighbours[list(neighbours.keys())[-1]]
-                        neighbours[(p, station.location)]=euclidean(p, station.location)/self.speed_walk
+                        neighbours[(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
         if len(done)!=2:
@@ -206,7 +210,7 @@ class Stations_network:
             self.V = set()
 
             for s in self.all_stations:
-                self.V.add(s.location)
+                self.V.add((s.location, s.line))
 
             self.V.add(a)
             self.V.add(b)
@@ -219,31 +223,54 @@ class Stations_network:
   
                 while station is not None and station.next is not None:
 
-                    if (station.location, station.next.location) not in list(self.E.keys()) and (station.next.location, station.location) not in list(self.E.keys()):
-                        self.E[(station.location, station.next.location)]=euclidean(station.location, station.next.location)/self.speed_metro
+                    if ((station.location, station.line), (station.next.location, station.next.line)) not in list(self.E.keys()) and ((station.next.location, station.next.line), (station.location, station.line)) not in list(self.E.keys()):
+                        self.E[((station.location, station.line), (station.next.location, station.next.line))]=euclidean(station.location, station.next.location)/self.speed_metro
 
                     if station.connected!=set():
                         for co in station.connected:
-                            if (station.location, co.location) not in list(self.E.keys()) and (co.location, station.location) not in list(self.E.keys()):
-                                self.E[(station.location, co.location)]=5/self.speed_change
+                            if ((station.location, station.line), (co.location, co.line)) not in list(self.E.keys()) and ((co.location, co.line), (station.location, station.line)) not in list(self.E.keys()):
+                                self.E[((station.location, station.line), (co.location, co.line))]=2/self.speed_change
 
                     station = station.next
 
             for k in neighbours:
                 self.E[k]=neighbours[k]
 
-            #Run Dijstra on this graph and compare:
-            metro_time, summary_metro=dijstra(self.V,self.E,a,b)
+
+            if np.random.uniform(0,1)<0.005:
+                # Create a graph object
+                G = nx.Graph()
+
+                # Add vertices and edges to the graph
+                G.add_nodes_from(self.V)
+                G.add_edges_from(self.E)
+
+                # Draw the graph
+                plt.figure(figsize=(8, 6))
+                nx.draw(G, with_labels=True, node_color='skyblue', node_size=500, font_size=8, font_weight='bold')
+                plt.title("Graph Visualization")
+
+                # Save the graph image to a file
+                graph_image_path = '/Users/mathieugierski/Library/CloudStorage/OneDrive-Personnel/metro/metro_map/graph_visualization.png'  # Replace with your desired file path
+                plt.savefig(graph_image_path)
+
+            #Run Dijkstra on this graph and compare:
+            metro_time, summary_metro=dijkstra(self.V,self.E,a,b)
             walking_time=euclidean(a, b)/self.speed_walk
 
             return (walking_time, metro_time, summary_metro)
         
 
     ################################################ 4.
-    def display(self, size):
+    def display(self, frame=True):
 
         L = {}
-        mid = int(size/2)
+        
+        #### MAKE IT CLEANER!!
+        if frame==True:
+            mid = int(self.size/2)
+        else:
+            mid=0
 
         for line in self.lines:
             way=[]

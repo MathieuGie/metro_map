@@ -1,7 +1,7 @@
 from typing import List, Dict
 import numpy as np
 
-def dijstra(V, E, source, end):
+def dijkstra(V, E, source, end):
 
 
     visited=[]
@@ -55,4 +55,4 @@ def dijstra(V, E, source, end):
 
 #V=[0,1,2,3,4,5,6,7,8,9,10]
 #E={(0,1):1, (1,2):2, (0,3):6, (3,4):4, (4,5):1, (3,6):3, (2,7):3, (5,8):10, (7,8):20, (7,9):22, (8,9):1, (2,10):100, (9,10):1}
-#print(dijstra(V, E, 0,1))
+#print(dijkstra(V, E, 0,1))
