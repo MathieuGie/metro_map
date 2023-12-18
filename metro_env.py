@@ -169,7 +169,9 @@ class Stations_network:
                     #print("add new co to", station.location, "with previous", new.location, "n_lines until now:", len(list(self.lines.keys())))
 
                     n_lines = len(list(self.lines.keys()))
+                    
                     self.lines[n_lines+1] = Line(n_lines+1, new, new_co)
+                    print("new line", new_co.location, new.location)
 
                     new_co.line = n_lines+1
                     new.line = n_lines+1
@@ -184,8 +186,9 @@ class Stations_network:
     def get_fastest(self, a, b):
 
         #First see if a or b is not connected to the graph (so no diksjtra)
-        neighbours = {}
+        neighbours = [{},{}]
         done=[]
+        i=0
         for p in [a, b]:
             for station in self.all_stations:
 
@@ -194,14 +197,16 @@ class Stations_network:
                     if p not in done:
                         done.append(p)
         
-                    if len(list(neighbours.keys()))<=self.k_walking:
-                        neighbours[(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk + self.waiting_for_train
-                        neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
+                    if len(list(neighbours[i].keys()))<self.k_walking:
+                        neighbours[i][(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk + self.waiting_for_train
+                        neighbours[i]={k: v for k, v in sorted(neighbours[i].items(), key=lambda item: item[1])}
 
-                    elif euclidean(p, station.location)<list(neighbours.values())[-1]:
-                        del neighbours[list(neighbours.keys())[-1]]
-                        neighbours[(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk + self.waiting_for_train
-                        neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
+                    elif euclidean(p, station.location)<list(neighbours[i].values())[-1]:
+                        del neighbours[i][list(neighbours[i].keys())[-1]]
+                        neighbours[i][(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk + self.waiting_for_train
+                        neighbours[i]={k: v for k, v in sorted(neighbours[i].items(), key=lambda item: item[1])}
+
+            i+=1
 
         if len(done)!=2:
 
@@ -226,7 +231,7 @@ class Stations_network:
   
                 while station is not None:
 
-                    if station.next is not None and station!=station.next:
+                    if station.next is not None and station.location!=station.next.location:
                         if ((station.location, station.line), (station.next.location, station.next.line)) not in list(self.E.keys()) and ((station.next.location, station.next.line), (station.location, station.line)) not in list(self.E.keys()):
                             self.E[((station.location, station.line), (station.next.location, station.next.line))]=euclidean(station.location, station.next.location)/self.speed_metro + self.waiting_when_stopping
 
@@ -241,14 +246,15 @@ class Stations_network:
 
                     station = station.next
 
-            for k in neighbours:
-                self.E[k]=neighbours[k]
+            for i in range(2):
+                for k in neighbours[i]:
+                    self.E[k]=neighbours[i][k]
 
 
             if 0==1:
 
                 print(self.display(False))
-                time.sleep(5)
+                time.sleep(2)
                 # Create a graph object
                 G = nx.Graph()
 

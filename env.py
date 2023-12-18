@@ -155,7 +155,7 @@ class Environment():
             i_initial, j_initial = self.metropolis.pick_point()
             i_final, j_final = self.metropolis.pick_point()
 
-            while euclidean((i_initial, j_initial),(i_final, j_final))<5:
+            while euclidean((i_initial, j_initial),(i_final, j_final))<25:
                 i_initial, j_initial = self.metropolis.pick_point()
 
             initial = (i_initial, j_initial)
@@ -163,29 +163,15 @@ class Environment():
 
             walking_time, metro_time, _ = self.metro.get_fastest(initial, final)
 
+            if metro_time==np.inf:
+                reward -= 0.5
 
-            if 8*metro_time<walking_time:
-                reward+=1.5
-            elif 7.5*metro_time<walking_time:
-                reward+=1.2
-            elif 7*metro_time<walking_time:
-                reward+=0.9
-            elif 6*metro_time<walking_time:
-                reward+=0.7
-            elif 5*metro_time<walking_time:
-                reward+=0.5
-            elif 4*metro_time<walking_time:
-                reward+=0.2
-            elif 3*metro_time<walking_time:
-                reward-=0.2
-            elif 2*metro_time<walking_time:
-                reward-=0.4
-            elif metro_time<walking_time:
-                reward-=0.8
-            elif 0.5*metro_time<walking_time:
-                reward-=1
             else:
-                reward-=1.5
+                x = (metro_time-walking_time)/walking_time
+                if x<=0:
+                    reward+= -(10/9)*x+0.2
+                else:
+                    reward-= 0.5
                 
         return reward/self.n_simulations
     
@@ -193,7 +179,7 @@ class Environment():
     def reset(self):
 
         self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new, self.p_station)
-        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking)
+        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking, self.waiting_for_train, self.waiting_when_stopping)
 
         for _ in range(10):
             self.metropolis.step(self.at_most_new)
