@@ -184,16 +184,22 @@ class Coordinator:
 
 
 metro_params={
+
+    #Distances
     "speed_metro" : 8,
     "speed_change" : 2,
     "speed_walk" : 1,
 
+    #Times
+    "waiting_for_train": 5,
+    "waiting_when_stopping": 1,
+
     "max_connected" : 2, # A change station has at most 2 connections
 
-    "r_walking" : 40,
+    "r_walking" : 60,
     "k_walking" : 2,
 
-    "p_selecting_station":0.66 # chance of prolongating a line instead of randomly selecting a station
+    "p_selecting_station":0.95 # chance of prolongating a line instead of randomly selecting a station
 }
 
 city_params={
@@ -212,7 +218,7 @@ learning_var={
 
 }
 
-coord = Coordinator(200, 500, (0,0), city_params, (0,0), metro_params, 1000, learning_var, 6)
+coord = Coordinator(200, 1000, (0,0), city_params, (0,0), metro_params, 1000, learning_var, 6)
 
 
 all = []

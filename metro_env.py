@@ -2,6 +2,7 @@ import numpy as np
 import copy
 import networkx as nx
 import matplotlib.pyplot as plt
+import time
 
 #from city import euclidean
 from dijkstra import dijkstra
@@ -37,7 +38,7 @@ class Line:
 
 class Stations_network:
 
-    def __init__(self, size, initial, max_connected:int, speed_walk, speed_metro, speed_change, r_walking, k_walking):
+    def __init__(self, size, initial, max_connected:int, speed_walk, speed_metro, speed_change, r_walking, k_walking, waiting_for_train, waiting_when_stopping):
 
         self.size=size
         initial_station = Station(initial[0], initial[1])
@@ -58,6 +59,9 @@ class Stations_network:
         self.speed_metro = speed_metro
         self.speed_change = speed_change
         self.speed_walk = speed_walk
+
+        self.waiting_for_train = waiting_for_train
+        self.waiting_when_stopping = waiting_when_stopping
 
         self.r_walking = r_walking
         self.k_walking = k_walking
@@ -80,6 +84,9 @@ class Stations_network:
             station.connected.add(new)
 
             self.all_stations.append(new)
+        
+        else:
+            self.complete.add(station)
 
         return new
     
@@ -100,7 +107,7 @@ class Stations_network:
 
             self.all_stations.append(new)
 
-            #print("adding previous", station.location, new.location)
+            #print("adding previous", station.location, station.line, new.location, new.line)
 
         #Next
         elif station.next is None and new.location not in L[station.line]:
@@ -113,7 +120,7 @@ class Stations_network:
 
             self.all_stations.append(new)
 
-            #print("adding next", station.location, new.location)
+            #print("adding next", station.location, station.line, new.location, new.line)
 
         #Co with available spot (previous or next)
         else:
@@ -131,7 +138,7 @@ class Stations_network:
                         if self.lines[station.line].starting == co:
                             self.lines[co.line].starting = new
 
-                        #print("adding previous to co", station.location, new.location)
+                        #print("adding previous to co", station.location,station.line,  new.location, new.line)
 
                         self.all_stations.append(new)
 
@@ -145,7 +152,7 @@ class Stations_network:
                         if self.lines[station.line].ending == co:
                             self.lines[co.line].ending = new
 
-                        #print("adding next to co", station.location, new.location)
+                        #print("adding next to co", station.location, station.line, new.location, new.line)
 
                         self.all_stations.append(new)
 
@@ -167,14 +174,10 @@ class Stations_network:
                     new_co.line = n_lines+1
                     new.line = n_lines+1
 
-                    #print("new", new_co.previous.location, self.lines[n_lines+1].starting.location)
-                    #print("new", new.next.location, self.lines[n_lines+1].ending.location)
+                    #print("new", new_co.location, new_co.line)
+                    #print("new", new.location, new.line)
 
                     self.all_stations.append(new)
-
-                
-                else:
-                    self.complete.add(station) #ONE DAY USE THIS TO LIMIT n of lines
 
 
     ################################################ 3.
@@ -191,13 +194,13 @@ class Stations_network:
                     if p not in done:
                         done.append(p)
         
-                    if len(neighbours)<self.k_walking:
-                        neighbours[(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk
+                    if len(list(neighbours.keys()))<=self.k_walking:
+                        neighbours[(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk + self.waiting_for_train
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
                     elif euclidean(p, station.location)<list(neighbours.values())[-1]:
                         del neighbours[list(neighbours.keys())[-1]]
-                        neighbours[(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk
+                        neighbours[(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk + self.waiting_for_train
                         neighbours={k: v for k, v in sorted(neighbours.items(), key=lambda item: item[1])}
 
         if len(done)!=2:
@@ -221,13 +224,18 @@ class Stations_network:
                 
                 station = self.lines[line].starting
   
-                while station is not None and station.next is not None:
+                while station is not None:
 
-                    if ((station.location, station.line), (station.next.location, station.next.line)) not in list(self.E.keys()) and ((station.next.location, station.next.line), (station.location, station.line)) not in list(self.E.keys()):
-                        self.E[((station.location, station.line), (station.next.location, station.next.line))]=euclidean(station.location, station.next.location)/self.speed_metro
+                    if station.next is not None and station!=station.next:
+                        if ((station.location, station.line), (station.next.location, station.next.line)) not in list(self.E.keys()) and ((station.next.location, station.next.line), (station.location, station.line)) not in list(self.E.keys()):
+                            self.E[((station.location, station.line), (station.next.location, station.next.line))]=euclidean(station.location, station.next.location)/self.speed_metro + self.waiting_when_stopping
 
                     if station.connected!=set():
                         for co in station.connected:
+
+                            if co==station:
+                                print("problem", co.location, co.line)
+                            
                             if ((station.location, station.line), (co.location, co.line)) not in list(self.E.keys()) and ((co.location, co.line), (station.location, station.line)) not in list(self.E.keys()):
                                 self.E[((station.location, station.line), (co.location, co.line))]=2/self.speed_change
 
@@ -237,7 +245,10 @@ class Stations_network:
                 self.E[k]=neighbours[k]
 
 
-            if np.random.uniform(0,1)<0.005:
+            if 0==1:
+
+                print(self.display(False))
+                time.sleep(5)
                 # Create a graph object
                 G = nx.Graph()
 
@@ -245,9 +256,17 @@ class Stations_network:
                 G.add_nodes_from(self.V)
                 G.add_edges_from(self.E)
 
+                color_map = {1: 'red', 2: 'orange', 3: 'yellow', 4:"lime", 5:"green", 6:"blue", 7:"cyan", 8:"magenta", 9:"purple", 10:"gray", 11:"black"}
+                default_color = 'white'
+
+                node_color = [
+                    color_map.get(node[1], default_color)
+                    if isinstance(node, tuple) and isinstance(node[0], tuple) else default_color
+                    for node in G.nodes()
+]
                 # Draw the graph
                 plt.figure(figsize=(8, 6))
-                nx.draw(G, with_labels=True, node_color='skyblue', node_size=500, font_size=8, font_weight='bold')
+                nx.draw(G, with_labels=True, node_color=node_color, node_size=500, font_size=8, font_weight='bold')
                 plt.title("Graph Visualization")
 
                 # Save the graph image to a file

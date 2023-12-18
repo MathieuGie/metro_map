@@ -46,13 +46,17 @@ class Environment():
         self.speed_walk = metro_facts["speed_walk"]
         self.speed_metro = metro_facts["speed_metro"]
         self.speed_change = metro_facts["speed_change"]
+
+        self.waiting_for_train = metro_facts["waiting_for_train"]
+        self.waiting_when_stopping = metro_facts["waiting_when_stopping"]
+
         self.r_walking = metro_facts["r_walking"]
         self.k_walking = metro_facts["k_walking"]
 
         self.p_selecting_station = metro_facts["p_selecting_station"]
 
         self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new, self.p_station)
-        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking)
+        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking, self.waiting_for_train, self.waiting_when_stopping)
 
         for _ in range(10):
             self.metropolis.step(self.at_most_new)
@@ -63,9 +67,9 @@ class Environment():
     def make_state(self, selected):
 
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
-        scales = [5, 15, 25, 50]
+        scales = [5, 15, 25, 50, 100]
 
-        self.info=torch.zeros((1, 38+2*self.max_connected))
+        self.info=torch.zeros((1, 46+2*self.max_connected))
         i=0
 
         #Normalised position
@@ -130,7 +134,7 @@ class Environment():
             self.metro.make_new_station(station, int(n*direction[0]), int(n*direction[1]))
 
     
-    ################################################ 2.
+    ################################################ 3.
     def change_metropolis(self):
 
         self.metropolis.step(self.at_most_new)
@@ -141,7 +145,7 @@ class Environment():
                 self.metropolis.step_station(station.location)
 
 
-    ################################################ 3.
+    ################################################ 4.
     def get_reward(self):
 
         reward=0
@@ -161,31 +165,31 @@ class Environment():
 
 
             if 8*metro_time<walking_time:
-                reward+=1.2
+                reward+=1.5
             elif 7.5*metro_time<walking_time:
-                reward+=1
+                reward+=1.2
             elif 7*metro_time<walking_time:
-                reward+=0.85
+                reward+=0.9
             elif 6*metro_time<walking_time:
-                reward+=0.66
+                reward+=0.7
             elif 5*metro_time<walking_time:
-                reward+=0.2
+                reward+=0.5
             elif 4*metro_time<walking_time:
-                reward-=0.2
+                reward+=0.2
             elif 3*metro_time<walking_time:
-                reward-=0.5
+                reward-=0.2
             elif 2*metro_time<walking_time:
-                reward-=0.7
+                reward-=0.4
             elif metro_time<walking_time:
-                reward-=1
+                reward-=0.8
             elif 0.5*metro_time<walking_time:
-                reward-=1.2
+                reward-=1
             else:
-                reward-=2
+                reward-=1.5
                 
         return reward/self.n_simulations
     
-    ################################################ 4.
+    ################################################ 5.
     def reset(self):
 
         self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new, self.p_station)
@@ -194,7 +198,7 @@ class Environment():
         for _ in range(10):
             self.metropolis.step(self.at_most_new)
 
-    ################################################ 5.
+    ################################################ 6.
     def select_station(self):
 
         if np.random.uniform(0,1)<self.p_selecting_station:

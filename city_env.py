@@ -134,7 +134,7 @@ class Metropolis:
                 if possible in self.area: 
 
                     dens, city = self.density[possible]
-                    dens = np.clip(dens+0.1, 0.15, 1)
+                    dens = np.clip(dens+0.1, 0.15, 10)
                     self.density[possible] = (dens, city)
 
                 elif (possible not in self.area) and (possible not in new_pixels):
