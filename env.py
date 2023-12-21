@@ -52,11 +52,12 @@ class Environment():
 
         self.r_walking = metro_facts["r_walking"]
         self.k_walking = metro_facts["k_walking"]
+        self.make_connection_distance = metro_facts["make_connection_distance"]
 
         self.p_selecting_station = metro_facts["p_selecting_station"]
 
         self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new, self.p_station)
-        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking, self.waiting_for_train, self.waiting_when_stopping)
+        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking, self.waiting_for_train, self.waiting_when_stopping, self.make_connection_distance)
 
         for _ in range(10):
             self.metropolis.step(self.at_most_new)
@@ -67,56 +68,85 @@ class Environment():
     def make_state(self, selected):
 
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
-        scales = [5, 15, 25, 50, 100]
+        scales = [8, 20, 35]
 
-        self.info=torch.zeros((1, 46+2*self.max_connected))
-        i=0
+        self.info=torch.zeros((1,58+6*self.max_connected))
 
         #Normalised position
-        self.info[i, 0]=selected.location[0]/(self.size)+0.5
-        self.info[i, 1]=selected.location[1]/(self.size)+0.5
+        self.info[0, 0]=selected.location[0]/(self.size)+0.5
+        self.info[0, 1]=selected.location[1]/(self.size)+0.5
+
+        if selected.location in self.metropolis.area:
+            self.info[0, 2]=self.metropolis.density[selected.location][0]
+
 
         #If in central city or not
         if selected.location in self.metropolis.central_city.area:
-            self.info[i, 2]=1
+            self.info[0, 3]=1
 
         j=0
+
+        max_density = max(self.metropolis.density[key][0] for key in self.metropolis.density)
 
         #Add the densities at the desired points
         for neighb in neighbours:
             for n in scales:
 
                 possible = (selected.location[0]+int(n*neighb[0]), selected.location[1]+int(n*neighb[1]))
-                
+                #print("possible", possible)
                 if possible[0]<self.size/2 and possible[0]>-self.size/2 and possible[1]<self.size/2 and possible[1]>-self.size/2:
-                    if possible in list(self.metropolis.density.keys()):
-                        self.info[i, 3+j]=self.metropolis.density[possible][0]
-                j+=1
+                    if possible in self.metropolis.area:
+                        #print("possible", possible, self.metropolis.density[possible][0])
+                        self.info[0, 4+j]=self.metropolis.density[possible][0]/max_density
+                        self.info[0, 5+j]=self.metro.station_already(possible)
+                j+=2
 
         #Look at the neighbours of the station
-        J = 3+j
+        J = 4+j
         if selected.previous is not None:
-            self.info[i, J]=1/100*(selected.location[0]-selected.previous.location[0])+0.5
+            self.info[0, J]=(selected.location[0]-selected.previous.location[0])/(self.size)+0.5
+            self.info[0, J+1]=(selected.location[1]-selected.previous.location[1])/(self.size)+0.5
+
+        else:
+            self.info[0, J+2]=1
         
         if selected.next is not None:
-            self.info[i, J+1]=1/100*(selected.location[1]-selected.next.location[1])+0.5
+            self.info[0, J+3]=(selected.location[0]-selected.next.location[0])/(self.size)+0.5
+            self.info[0, J+4]=(selected.location[1]-selected.next.location[1])/(self.size)+0.5
 
-        if selected.previous is None and selected.next is None:
-            self.info[i, J+2]=1
+        else:
+            self.info[0, J+5]=1
 
-        J+=3
+        J+=6
         #Look at connections of the station
+        n=0
+
         if selected.connected!={}:
-            n=0
             for co in selected.connected:
 
                 if co.previous is not None:
-                    self.info[i, J+n*self.max_connected]=1/100*(co.location[0]-co.previous.location[0])+0.5
+                    self.info[0, J+n*6]=(co.location[0]-co.previous.location[0])/(self.size)+0.5
+                    self.info[0, J+n*6+1]=(co.location[1]-co.previous.location[1])/(self.size)+0.5
+                
+                else:
+                    self.info[0, J+n*6+2]=1
                 
                 if co.next is not None:
-                    self.info[i, J+n*self.max_connected+1]=1/100*(co.location[1]-co.next.location[1])+0.5
+                    self.info[0, J+n*6+3]=(co.location[0]-co.next.location[0])/(self.size)+0.5
+                    self.info[0, J+n*6+4]=(co.location[1]-co.next.location[1])/(self.size)+0.5
+
+                else:
+                    self.info[0, J+n*6+5]=1
 
                 n+=1
+
+        
+        while n!=self.max_connected:
+
+            self.info[0, J+n*6+2]=1
+            self.info[0, J+n*6+5]=1
+            n+=1
+
 
         return self.info
     
@@ -124,14 +154,20 @@ class Environment():
     def change_metro(self, station, action):
 
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
-        scales = [10, 25, 50]
+        scales = [8, 20]
 
         if action!=0:
             n = scales[(action-1)//8]
             direction = neighbours[(action-1)%8]
 
             #New location added
-            self.metro.make_new_station(station, int(n*direction[0]), int(n*direction[1]))
+            new_loc = (station.location[0] + int(n*direction[0]), station.location[1] + int(n*direction[1]))
+
+            if new_loc[0]<self.size/2 and new_loc[0]>-self.size/2 and new_loc[1]<self.size/2 and new_loc[1]>-self.size/2:
+                new = self.metro.make_new_station(station, new_loc[0], new_loc[1], returning=True)
+
+                if new is not None:
+                    self.metro.make_connection_close(new)
 
     
     ################################################ 3.
@@ -164,14 +200,16 @@ class Environment():
             walking_time, metro_time, _ = self.metro.get_fastest(initial, final)
 
             if metro_time==np.inf:
-                reward -= 0.5
+                reward += 0.1
 
             else:
                 x = (metro_time-walking_time)/walking_time
                 if x<=0:
-                    reward+= -(10/9)*x+0.2
+                    reward+= -(10/9)*x+0.4
                 else:
-                    reward-= 0.5
+                    reward+= 0.2
+
+            #print(reward)
                 
         return reward/self.n_simulations
     
@@ -179,7 +217,7 @@ class Environment():
     def reset(self):
 
         self.metropolis = Metropolis(self.city_center, self.size, self.p_center, self.p_new, self.p_station)
-        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking, self.waiting_for_train, self.waiting_when_stopping)
+        self.metro = Stations_network(self.size, self.first_station, self.max_connected, self.speed_walk, self.speed_metro, self.speed_change, self.r_walking, self.k_walking, self.waiting_for_train, self.waiting_when_stopping, self.make_connection_distance)
 
         for _ in range(10):
             self.metropolis.step(self.at_most_new)

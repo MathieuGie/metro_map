@@ -38,7 +38,7 @@ class Line:
 
 class Stations_network:
 
-    def __init__(self, size, initial, max_connected:int, speed_walk, speed_metro, speed_change, r_walking, k_walking, waiting_for_train, waiting_when_stopping):
+    def __init__(self, size, initial, max_connected:int, speed_walk, speed_metro, speed_change, r_walking, k_walking, waiting_for_train, waiting_when_stopping, make_connection_distance):
 
         self.size=size
         initial_station = Station(initial[0], initial[1])
@@ -65,6 +65,7 @@ class Stations_network:
 
         self.r_walking = r_walking
         self.k_walking = k_walking
+        self.make_connection_distance = make_connection_distance
 
     ################################################ 1.
     def make_change_station(self, station:Station):
@@ -91,7 +92,7 @@ class Stations_network:
         return new
     
     ################################################ 2.
-    def make_new_station(self, station, i, j):
+    def make_new_station(self, station, i, j, returning=False):
 
         new = Station(i,j)
         L = self.display(frame=False)
@@ -171,7 +172,7 @@ class Stations_network:
                     n_lines = len(list(self.lines.keys()))
                     
                     self.lines[n_lines+1] = Line(n_lines+1, new, new_co)
-                    print("new line", new_co.location, new.location)
+                    #print("new line", new_co.location, new.location)
 
                     new_co.line = n_lines+1
                     new.line = n_lines+1
@@ -180,6 +181,10 @@ class Stations_network:
                     #print("new", new.location, new.line)
 
                     self.all_stations.append(new)
+
+        if returning:
+            #print(new)
+            return new
 
 
     ################################################ 3.
@@ -242,7 +247,7 @@ class Stations_network:
                                 print("problem", co.location, co.line)
                             
                             if ((station.location, station.line), (co.location, co.line)) not in list(self.E.keys()) and ((co.location, co.line), (station.location, station.line)) not in list(self.E.keys()):
-                                self.E[((station.location, station.line), (co.location, co.line))]=2/self.speed_change
+                                self.E[((station.location, station.line), (co.location, co.line))]=(2+euclidean(station.location, co.location))/self.speed_change
 
                     station = station.next
 
@@ -251,9 +256,10 @@ class Stations_network:
                     self.E[k]=neighbours[i][k]
 
 
-            if 0==1:
+            if np.random.uniform(0,1)<0.0001:
+            #if 0==0:
 
-                print(self.display(False))
+                #print(self.display(False))
                 time.sleep(2)
                 # Create a graph object
                 G = nx.Graph()
@@ -262,7 +268,8 @@ class Stations_network:
                 G.add_nodes_from(self.V)
                 G.add_edges_from(self.E)
 
-                color_map = {1: 'red', 2: 'orange', 3: 'yellow', 4:"lime", 5:"green", 6:"blue", 7:"cyan", 8:"magenta", 9:"purple", 10:"gray", 11:"black"}
+                color_map = {1:"red", 2:"darkorange", 3:"gold", 4:"yellow", 5:"lime", 6:"green", 7:"cyan",8:"dodgerblue", 
+                             9:"blue",10:"purple",11:"blueviolet", 12:"magenta", 13:"pink",14:"crimson", 15:"maroon"}
                 default_color = 'white'
 
                 node_color = [
@@ -282,6 +289,8 @@ class Stations_network:
             #Run Dijkstra on this graph and compare:
             metro_time, summary_metro=dijkstra(self.V,self.E,a,b)
             walking_time=euclidean(a, b)/self.speed_walk
+
+            #print("summary", walking_time, metro_time)
 
             return (walking_time, metro_time, summary_metro)
         
@@ -308,4 +317,42 @@ class Stations_network:
             L[line] = way
 
         return L
+    
+    ################################################ 5.
+    def station_already(self, location):
+
+        for station in self.all_stations:
+            if euclidean(station.location, location)<=self.r_walking:
+                return 1
+            
+        return 0
+    
+    ################################################ 6.
+    def make_connection_close(self, station:Station):
+        #Take all closest stations and add as connected
+        #Here we make a connection if stations are close enough but they are not necessarily exactly at the same spot on the map
+
+        closest={}
+        for s in self.all_stations:
+            if euclidean(s.location, station.location)<=self.make_connection_distance:
+                if len(s.connected)<self.max_connected and station not in s.connected and s not in station.connected and s!=station:
+            
+                    if len(list(closest.keys()))<self.max_connected:
+                        closest[s]=euclidean(s.location, station.location)
+                        closest = {k: v for k, v in sorted(closest.items(), key=lambda item: item[1])}
+                    
+                    elif euclidean(s.location, station.location)<list(closest.values())[-1]:
+                        del closest[list(closest.keys())[-1]]
+                        closest[s]=euclidean(s.location, station.location)
+                        closest = {k: v for k, v in sorted(closest.items(), key=lambda item: item[1])}
+
+        #Station can be connected to a and b but that does not imply that a and b are directly connected (though dijkstra can indirectly connect a and b through station)
+        for s in closest:
+
+            s.connected.add(station)
+            station.connected.add(s)
+
+            if len(s.connected)>=self.max_connected:
+                self.complete.add(s)
+
 

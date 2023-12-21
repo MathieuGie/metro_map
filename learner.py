@@ -5,8 +5,6 @@ import numpy as np
 
 from nn import nn
 
-loss = tnn.MSELoss()
-
 class Learner():
 
     def __init__(self, k: int, gamma: float):
@@ -21,6 +19,8 @@ class Learner():
         self.action2 = None
         self.gamma = gamma
 
+        self.loss = tnn.MSELoss()
+
     def predict(self, x: torch.tensor, epsilon: float):
 
         out = self.prediction_nn.forward(x)
@@ -31,7 +31,7 @@ class Learner():
         if proba>epsilon:
             self.action=out.argmax()
         else:
-            self.action=int(np.random.randint(0,25))
+            self.action=int(np.random.randint(0,17))
 
         #print("action", self.action)
 
@@ -67,5 +67,5 @@ class Learner():
 
     def get_loss(self):
 
-        return loss(self.y, self.y_hat)
+        return self.loss(self.y, self.y_hat)
 

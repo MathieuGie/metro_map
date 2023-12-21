@@ -55,6 +55,8 @@ class Coordinator:
 
             vec = torch.cat((remaining, row), axis=1)
 
+            #print("state1", row.shape)
+
             self.learner.predict(vec, self.epsilon)
             action = self.learner.action
 
@@ -63,7 +65,7 @@ class Coordinator:
             if action != 0 and actions_left<=0:
                 actions_left=0
                 action = 0
-                r = 0
+                r = 0.1
 
             #When action is playable
             else:
@@ -75,7 +77,7 @@ class Coordinator:
 
                 self.environment.change_metropolis()
 
-
+            #print("reward", r)
             STATE = vec
             ACTION = action
             REWARD = r
@@ -94,10 +96,14 @@ class Coordinator:
 
             vec = torch.cat((remaining, new_row), axis=1)
 
+            #print("state2", row)
+
             NSTATE = vec
             self.buffer.push((STATE, ACTION, REWARD, NSTATE))
 
             self.learner.target(vec, r)
+
+            #print("Q_pred", self.learner.y_hat, "Q_target", self.learner.y)
 
 
             if L is None:
@@ -139,6 +145,7 @@ class Coordinator:
 
             self.time+=1
             L = self.feed_play(10, 7)
+            print("LOSS", L)
             self.epsilon*=self.epsilon_decay
 
             self.backprop(L, self.n_iter*time_target+self.time)
@@ -149,13 +156,14 @@ class Coordinator:
         out = self.average_reward
 
         self.average_reward=0
+        self.total_reward=0
         self.time=0
 
         self.environment.reset()
 
         return out
     
-    def display(self):
+    def display(self, show=True):
 
         frame = self.environment.metropolis.display()
         plt.imshow(frame, cmap='viridis', origin='lower')
@@ -164,7 +172,8 @@ class Coordinator:
         print(LINES)
 
         # Predefined list of colors.
-        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        colors = ["red", "darkorange", "gold", "yellow", "lime", "green", "cyan","dodgerblue", "blue","purple","blueviolet", "magenta",
+                   "pink", "crimson", "maroon"]
 
         for idx, (key, line) in enumerate(LINES.items()):
             color = colors[idx % len(colors)]  # Cycle through colors if there are more lines than colors.
@@ -176,8 +185,13 @@ class Coordinator:
         plt.colorbar(label='Density')
         plt.title('Density and Points')
 
+        plt.savefig('result_map.png')
         plt.legend()
-        plt.show()
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
     
 
 ###############################
@@ -196,8 +210,9 @@ metro_params={
 
     "max_connected" : 2, # A change station has at most 2 connections
 
-    "r_walking" : 80,
+    "r_walking" : 5,
     "k_walking" : 2,
+    "make_connection_distance":3,
 
     "p_selecting_station":0.85 # chance of prolongating a line instead of randomly selecting a station
 }
@@ -210,25 +225,28 @@ city_params={
 }
 
 learning_var={
-    "epsilon":0.95,
-    "epsilon_decay":0.999,
-    "tau":0.6,
+    "epsilon":0.80,
+    "epsilon_decay":0.9997,
+    "tau":0.1,
     "update_target_interval":20,
     "gamma":0.98
 
 }
 
-coord = Coordinator(200, 1, (0,0), city_params, (0,0), metro_params, 1000, learning_var, 6)
+coord = Coordinator(200, 1, (0,0), city_params, (0,0), metro_params, 10000, learning_var, 6)
 
 
 all = []
 time_target=0
 
-for i in range(1000):
+for i in range(2000):
 
     print("reset", i)
     coord.step(time_target)
     time_target+=1 #Keep track for the update of the target
+
+    if i%20==0:
+        coord.display(show=False)
 
     r = coord.reset()
     print("r:", r)
