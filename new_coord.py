@@ -208,13 +208,13 @@ metro_params={
     "waiting_for_train": 5,
     "waiting_when_stopping": 1,
 
-    "max_connected" : 2, # A change station has at most 2 connections
+    "max_connected" : 2, # A change station has at most 2 connections (CANNOT BE 0)
 
     "r_walking" : 5,
     "k_walking" : 2,
     "make_connection_distance":3,
 
-    "p_selecting_station":0.85 # chance of prolongating a line instead of randomly selecting a station
+    "p_selecting_station":0.87 # chance of prolongating a line instead of randomly selecting a station
 }
 
 city_params={
@@ -225,8 +225,8 @@ city_params={
 }
 
 learning_var={
-    "epsilon":0.80,
-    "epsilon_decay":0.9997,
+    "epsilon":0.9,
+    "epsilon_decay":0.9999,
     "tau":0.1,
     "update_target_interval":20,
     "gamma":0.98
@@ -245,7 +245,8 @@ for i in range(2000):
     coord.step(time_target)
     time_target+=1 #Keep track for the update of the target
 
-    if i%20==0:
+    if i%1==0:
+        print("DISPLAYING")
         coord.display(show=False)
 
     r = coord.reset()

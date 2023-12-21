@@ -69,20 +69,37 @@ class Stations_network:
 
     ################################################ 1.
     def make_change_station(self, station:Station):
+        #adding a new line from a given station
 
         new = None
+        #print("making a new", station.location, station.line)
 
         if station not in self.complete and len(station.connected)<self.max_connected:
 
             new = Station(station.location[0], station.location[1])
 
-            new.connected = copy.deepcopy(station.connected)
+            new.connected = set()
+
+            #They will get all the existing connections, if they are not at max capacity of connection
             new.connected.add(station)
 
             for co in set(station.connected):
-                co.connected.add(new)
+                if co not in self.complete and new not in self.complete:
+
+                    co.connected.add(new)
+                    new.connected.add(co)
+
+                    if len(co.connected)>=self.max_connected:
+                        self.complete.add(co)
+
+                    if len(new.connected)>=self.max_connected:
+                        self.complete.add(new)
+                    
 
             station.connected.add(new)
+
+            if len(station.connected)>=self.max_connected:
+                self.complete.add(station)
 
             self.all_stations.append(new)
         
@@ -93,6 +110,11 @@ class Stations_network:
     
     ################################################ 2.
     def make_new_station(self, station, i, j, returning=False):
+
+        for s in self.complete:
+            if (i,j)==s.location:
+                #Cannot put a station where there is a complete change already
+                return None
 
         new = Station(i,j)
         L = self.display(frame=False)
@@ -130,13 +152,15 @@ class Stations_network:
             if station.connected!=set():
                 for co in set(station.connected):
 
+                    #print("hello", co.location, new.location)
+
                     if found==0 and co.previous is None and new.location not in L[co.line]:
                         found=1
                         co.previous=new
                         new.next = co
                         new.line = co.line
 
-                        if self.lines[station.line].starting == co:
+                        if self.lines[co.line].starting == co:
                             self.lines[co.line].starting = new
 
                         #print("adding previous to co", station.location,station.line,  new.location, new.line)
@@ -150,7 +174,7 @@ class Stations_network:
                         new.previous=co
                         new.line = co.line
 
-                        if self.lines[station.line].ending == co:
+                        if self.lines[co.line].ending == co:
                             self.lines[co.line].ending = new
 
                         #print("adding next to co", station.location, station.line, new.location, new.line)
@@ -182,8 +206,12 @@ class Stations_network:
 
                     self.all_stations.append(new)
 
+                #Need to add this for the returning otherwise returns stupid thing
+                elif returning:
+                    return None
+
         if returning:
-            #print(new)
+            #print("new", new.location, new.line)
             return new
 
 
@@ -224,6 +252,9 @@ class Stations_network:
 
             for s in self.all_stations:
                 self.V.add((s.location, s.line))
+                #print("V", (s.location, s.line))
+                #if s.line is None:
+                    #print("ALERT", s.location, s.previous, s.next)
 
             self.V.add(a)
             self.V.add(b)
@@ -241,10 +272,15 @@ class Stations_network:
                             self.E[((station.location, station.line), (station.next.location, station.next.line))]=euclidean(station.location, station.next.location)/self.speed_metro + self.waiting_when_stopping
 
                     if station.connected!=set():
+
+                        if len(station.connected)>self.max_connected:
+                            print("problem, station has too many connections")
+
                         for co in station.connected:
 
                             if co==station:
-                                print("problem", co.location, co.line)
+                                print("problem, station connected to itself", co.location, co.line)
+
                             
                             if ((station.location, station.line), (co.location, co.line)) not in list(self.E.keys()) and ((co.location, co.line), (station.location, station.line)) not in list(self.E.keys()):
                                 self.E[((station.location, station.line), (co.location, co.line))]=(2+euclidean(station.location, co.location))/self.speed_change
@@ -256,11 +292,11 @@ class Stations_network:
                     self.E[k]=neighbours[i][k]
 
 
-            if np.random.uniform(0,1)<0.0001:
+            if np.random.uniform(0,1)<0.0005:
             #if 0==0:
 
-                #print(self.display(False))
-                time.sleep(2)
+                print(self.display(False))
+                time.sleep(1)
                 # Create a graph object
                 G = nx.Graph()
 
@@ -285,6 +321,8 @@ class Stations_network:
                 # Save the graph image to a file
                 graph_image_path = '/Users/mathieugierski/Library/CloudStorage/OneDrive-Personnel/metro/metro_map/graph_visualization.png'  # Replace with your desired file path
                 plt.savefig(graph_image_path)
+
+                plt.close()
 
             #Run Dijkstra on this graph and compare:
             metro_time, summary_metro=dijkstra(self.V,self.E,a,b)
@@ -333,26 +371,31 @@ class Stations_network:
         #Here we make a connection if stations are close enough but they are not necessarily exactly at the same spot on the map
 
         closest={}
-        for s in self.all_stations:
-            if euclidean(s.location, station.location)<=self.make_connection_distance:
-                if len(s.connected)<self.max_connected and station not in s.connected and s not in station.connected and s!=station:
-            
-                    if len(list(closest.keys()))<self.max_connected:
-                        closest[s]=euclidean(s.location, station.location)
-                        closest = {k: v for k, v in sorted(closest.items(), key=lambda item: item[1])}
-                    
-                    elif euclidean(s.location, station.location)<list(closest.values())[-1]:
-                        del closest[list(closest.keys())[-1]]
-                        closest[s]=euclidean(s.location, station.location)
-                        closest = {k: v for k, v in sorted(closest.items(), key=lambda item: item[1])}
+        if len(station.connected)<self.max_connected:
 
-        #Station can be connected to a and b but that does not imply that a and b are directly connected (though dijkstra can indirectly connect a and b through station)
-        for s in closest:
+            for s in self.all_stations:
+                if euclidean(s.location, station.location)<=self.make_connection_distance and s.line!=station.line:
+                    if len(s.connected)<self.max_connected and station not in s.connected and s not in station.connected and s!=station:
+                
+                        if len(list(closest.keys()))<self.max_connected:
+                            closest[s]=euclidean(s.location, station.location)
+                            closest = {k: v for k, v in sorted(closest.items(), key=lambda item: item[1])}
+                        
+                        elif euclidean(s.location, station.location)<list(closest.values())[-1]:
+                            del closest[list(closest.keys())[-1]]
+                            closest[s]=euclidean(s.location, station.location)
+                            closest = {k: v for k, v in sorted(closest.items(), key=lambda item: item[1])}
 
-            s.connected.add(station)
-            station.connected.add(s)
+            #Station can be connected to a and b but that does not imply that a and b are directly connected (though dijkstra can indirectly connect a and b through station)
+            for s in closest:
 
-            if len(s.connected)>=self.max_connected:
-                self.complete.add(s)
+                s.connected.add(station)
+                station.connected.add(s)
+
+                if len(s.connected)>=self.max_connected:
+                    self.complete.add(s)
+
+                if len(station.connected)>=self.max_connected:
+                    self.complete.add(station)
 
 

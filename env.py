@@ -70,7 +70,7 @@ class Environment():
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
         scales = [8, 20, 35]
 
-        self.info=torch.zeros((1,58+6*self.max_connected))
+        self.info=torch.zeros((1,83+6*self.max_connected))
 
         #Normalised position
         self.info[0, 0]=selected.location[0]/(self.size)+0.5
@@ -83,6 +83,10 @@ class Environment():
         #If in central city or not
         if selected.location in self.metropolis.central_city.area:
             self.info[0, 3]=1
+
+        #If it is complete, we cannot add any more line
+        if selected in self.metro.complete:
+            self.info[0, 4]=1
 
         j=0
 
@@ -97,12 +101,17 @@ class Environment():
                 if possible[0]<self.size/2 and possible[0]>-self.size/2 and possible[1]<self.size/2 and possible[1]>-self.size/2:
                     if possible in self.metropolis.area:
                         #print("possible", possible, self.metropolis.density[possible][0])
-                        self.info[0, 4+j]=self.metropolis.density[possible][0]/max_density
-                        self.info[0, 5+j]=self.metro.station_already(possible)
-                j+=2
+                        self.info[0, 5+j]=self.metropolis.density[possible][0]/max_density
+                        self.info[0, 6+j]=self.metro.station_already(possible)
+
+                        for s in self.metro.complete:
+                            if possible==s.location:
+                                self.info[0, 7+j]=1
+                                break
+                j+=3
 
         #Look at the neighbours of the station
-        J = 4+j
+        J = 5+j
         if selected.previous is not None:
             self.info[0, J]=(selected.location[0]-selected.previous.location[0])/(self.size)+0.5
             self.info[0, J+1]=(selected.location[1]-selected.previous.location[1])/(self.size)+0.5
