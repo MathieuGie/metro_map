@@ -53,9 +53,8 @@ class Learner():
 
             if actions_left!=0:
                 self.action2=get_a.max(dim=1).indices
-
             else:
-                self.action2=0
+                self.action2=torch.tensor([0])
 
             #print("action2", self.action2)
 

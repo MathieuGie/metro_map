@@ -73,7 +73,7 @@ class Coordinator:
                 r = -0.1
 
             elif action == 0 and actions_left==0:
-                r = 0
+                r = self.environment.get_reward()
 
             #When action is playable
             else:
@@ -92,6 +92,7 @@ class Coordinator:
             STATE = vec
             ACTION = action
             REWARD = r
+            ACTIONS_LEFT_TARGET = actions_left
             self.average_reward+=r
             self.total_reward+=1
 
@@ -110,7 +111,7 @@ class Coordinator:
             #print("state2", row)
 
             NSTATE = vec
-            self.buffer.push((STATE, ACTION, REWARD, NSTATE))
+            self.buffer.push((STATE, ACTION, REWARD, NSTATE, ACTIONS_LEFT_TARGET))
 
             self.learner.target(vec, r, actions_left)
 
@@ -129,7 +130,7 @@ class Coordinator:
         for sample in samples:
 
             self.learner.predict_for_replay(sample[0], sample[1])
-            self.learner.target(sample[3], sample[2])
+            self.learner.target(sample[3], sample[2], sample[4])
             L+=self.learner.get_loss()
 
         return L/(n_selected+64) #Need to divide
@@ -247,7 +248,7 @@ learning_var={
 possibilities_to_expand = 7
 total_expansions = 20
 
-coord = Coordinator(200, 300, (0,0), city_params, (0,0), metro_params, 10000, learning_var, 6, possibilities_to_expand , total_expansions)
+coord = Coordinator(200, 300, (0,0), city_params, (0,0), metro_params, 1000, learning_var, 6, possibilities_to_expand , total_expansions)
 
 
 all = []
