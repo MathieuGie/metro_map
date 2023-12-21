@@ -292,8 +292,8 @@ class Stations_network:
                     self.E[k]=neighbours[i][k]
 
 
-            if np.random.uniform(0,1)<0.0005:
-            #if 0==0:
+            #if np.random.uniform(0,1)<0.0001:
+            if 0==1:
 
                 print(self.display(False))
                 time.sleep(1)
@@ -306,7 +306,7 @@ class Stations_network:
 
                 color_map = {1:"red", 2:"darkorange", 3:"gold", 4:"yellow", 5:"lime", 6:"green", 7:"cyan",8:"dodgerblue", 
                              9:"blue",10:"purple",11:"blueviolet", 12:"magenta", 13:"pink",14:"crimson", 15:"maroon"}
-                default_color = 'white'
+                default_color = 'gray'
 
                 node_color = [
                     color_map.get(node[1], default_color)

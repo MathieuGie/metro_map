@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 class Coordinator:
 
-    def __init__(self, size, n_simulations, city_center, city_facts, first_station, metro_facts, buffer_size, learning_var, n_iter):
+    def __init__(self, size, n_simulations, city_center, city_facts, first_station, metro_facts, buffer_size, learning_var, n_iter, possibilities_to_expand, total_expansions):
 
         self.environment = Environment(size, n_simulations, city_center, city_facts, first_station, metro_facts)
         self.buffer = ReplayBuffer(buffer_size)
@@ -30,9 +30,12 @@ class Coordinator:
 
         self.n_iter = n_iter
 
+        self.possibilities_to_expand = possibilities_to_expand
+        self.total_expansions = total_expansions
+
     
     def feed_play(self, n_selected:int, n_allowed_per_play: int):
-
+        
         L = None
         actions_left=1 #this will decrease the more actions we deecide to do.
 
@@ -40,7 +43,9 @@ class Coordinator:
         done=set()
         done.add(-1) #Add a starting fake station
 
-        for _ in range(n_selected):
+        for i in range(n_selected):
+
+            print("ACTIIONS LEFT:", i, actions_left)
 
             #Make state s: (needed at every new step because changes are made)
             station = self.environment.select_station()
@@ -62,15 +67,21 @@ class Coordinator:
 
 
             #When not allowed to play the action
-            if action != 0 and actions_left<=0:
+            if action != 0 and actions_left==0:
                 actions_left=0
                 action = 0
-                r = 0.1
+                r = -0.1
+
+            elif action == 0 and actions_left==0:
+                r = 0
 
             #When action is playable
             else:
                 if action != 0:
                     actions_left-=1/n_allowed_per_play
+
+                    if actions_left<0.0001:
+                        actions_left=0
 
                 self.environment.change_metro(station, action)
                 r = self.environment.get_reward()
@@ -101,7 +112,7 @@ class Coordinator:
             NSTATE = vec
             self.buffer.push((STATE, ACTION, REWARD, NSTATE))
 
-            self.learner.target(vec, r)
+            self.learner.target(vec, r, actions_left)
 
             #print("Q_pred", self.learner.y_hat, "Q_target", self.learner.y)
 
@@ -144,7 +155,7 @@ class Coordinator:
             print("iteration_coord:", i)
 
             self.time+=1
-            L = self.feed_play(10, 7)
+            L = self.feed_play(self.total_expansions, self.possibilities_to_expand)
             print("LOSS", L)
             self.epsilon*=self.epsilon_decay
 
@@ -225,15 +236,18 @@ city_params={
 }
 
 learning_var={
-    "epsilon":0.9,
-    "epsilon_decay":0.9999,
+    "epsilon":0.8,
+    "epsilon_decay":0.9997,
     "tau":0.1,
     "update_target_interval":20,
     "gamma":0.98
 
 }
 
-coord = Coordinator(200, 1, (0,0), city_params, (0,0), metro_params, 10000, learning_var, 6)
+possibilities_to_expand = 7
+total_expansions = 20
+
+coord = Coordinator(200, 300, (0,0), city_params, (0,0), metro_params, 10000, learning_var, 6, possibilities_to_expand , total_expansions)
 
 
 all = []
@@ -245,7 +259,7 @@ for i in range(2000):
     coord.step(time_target)
     time_target+=1 #Keep track for the update of the target
 
-    if i%1==0:
+    if i%10==0:
         print("DISPLAYING")
         coord.display(show=False)
 

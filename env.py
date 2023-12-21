@@ -5,6 +5,7 @@ import numpy as np
 import torch 
 from collections import deque
 import random
+import copy
 
 def euclidean(a, b):
     a = np.array(a)
@@ -63,12 +64,14 @@ class Environment():
             self.metropolis.step(self.at_most_new)
 
         self.info = None
+
+        self.before_reward = 0
     
     ################################################ 1.
     def make_state(self, selected):
 
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
-        scales = [8, 20, 35]
+        scales = [8, 20, 45]
 
         self.info=torch.zeros((1,83+6*self.max_connected))
 
@@ -219,8 +222,11 @@ class Environment():
                     reward+= 0.2
 
             #print(reward)
+
+        R = reward/self.n_simulations - copy.deepcopy(self.before_reward)
+        self.before_reward = reward/self.n_simulations
                 
-        return reward/self.n_simulations
+        return 20*R
     
     ################################################ 5.
     def reset(self):

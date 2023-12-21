@@ -45,12 +45,17 @@ class Learner():
         self.y_hat=out[:,action][0]
 
 
-    def target(self, x: torch.tensor, r: int):
+    def target(self, x: torch.tensor, r: int, actions_left):
 
         with torch.no_grad():
 
             get_a=self.prediction_nn.forward(x)
-            self.action2=get_a.max(dim=1).indices
+
+            if actions_left!=0:
+                self.action2=get_a.max(dim=1).indices
+
+            else:
+                self.action2=0
 
             #print("action2", self.action2)
 
