@@ -359,11 +359,17 @@ class Stations_network:
     ################################################ 5.
     def station_already(self, location):
 
+        found = 0
+        found_complete = 0
+
         for station in self.all_stations:
             if euclidean(station.location, location)<=self.r_walking:
-                return 1
+                found=1
+
+                if station in self.complete:
+                    found_complete=1
             
-        return 0
+        return found, found_complete
     
     ################################################ 6.
     def make_connection_close(self, station:Station):

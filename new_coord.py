@@ -6,10 +6,11 @@ import torch
 from collections import deque
 import random
 import matplotlib.pyplot as plt
+import time
 
 class Coordinator:
 
-    def __init__(self, size, n_simulations, city_center, city_facts, first_station, metro_facts, buffer_size, learning_var, n_iter, possibilities_to_expand, total_expansions):
+    def __init__(self, size, n_simulations, city_center, city_facts, first_station, metro_facts, buffer_size, learning_var, n_iter, allowed_per_play, total_suggerable):
 
         self.environment = Environment(size, n_simulations, city_center, city_facts, first_station, metro_facts)
         self.buffer = ReplayBuffer(buffer_size)
@@ -30,11 +31,78 @@ class Coordinator:
 
         self.n_iter = n_iter
 
-        self.possibilities_to_expand = possibilities_to_expand
-        self.total_expansions = total_expansions
+        self.allowed_per_play = allowed_per_play
+        self.total_suggerable = total_suggerable
+
+    def feed_play(self, n_selected:int, n_allowed_per_play: int):
+        
+        L = None
+
+        for _ in range(2):
+
+            if np.random.uniform(0,1)>self.epsilon:
+                all_Q = {}
+                with torch.no_grad():
+                    for station in self.environment.metro.all_stations:
+
+                        state = self.environment.make_state(station)
+                        Q_values = self.learner.prediction_nn.forward(state)
+                        all_Q[station] = Q_values
+
+                averages = [(key, torch.max(value).item()) for key, value in all_Q.items()]
+                best_station = max(averages, key=lambda x: x[1])[0]
+            
+            else:
+                best_station = self.environment.select_station()
+
+            state = self.environment.make_state(best_station)
+            self.learner.predict(state, self.epsilon)
+            action = self.learner.action
+
+            #print("action", action)
+
+            self.environment.change_metro(best_station, action)
+            r = self.environment.get_reward(action)
+            print(action, r)
+            #self.environment.change_metropolis()
+
+            new_state = self.environment.make_state(best_station)
+
+            if len(self.environment.metro.all_stations)>=10:
+                final=True
+            else:
+                final=False
+
+            self.buffer.push((state, action, r, new_state, final))
+
+            self.learner.target(new_state, r, final)
+
+            self.average_reward+=r
+            self.total_reward+=1
+
+        #print("before", self.learner.y_hat)            
+        
+        ###Now sample:
+        samples = self.buffer.sample(128)
+
+        #print("SAMPLES", len(samples))
+
+        for sample in samples:
+
+            self.learner.predict_for_replay(sample[0], sample[1])
+            self.learner.target(sample[3], sample[2], sample[4])
+            #print(self.learner.y_hat)
+
+            if L is None:
+                L = self.learner.get_loss()
+
+            else:
+                L += self.learner.get_loss()
+
+        return L/(len(samples)) #Need to divide
 
     
-    def feed_play(self, n_selected:int, n_allowed_per_play: int):
+    def feed_play2(self, n_selected:int, n_allowed_per_play: int):
         
         L = None
         actions_left=1 #this will decrease the more actions we deecide to do.
@@ -135,32 +203,42 @@ class Coordinator:
 
         return L/(n_selected+64) #Need to divide
     
-    def backprop(self, L, time):
+    def backprop(self, L, t):
 
         #Backprop on nn
+        #print(L)
+        #time.sleep(2)
         self.optimiser.zero_grad()
         L.backward()
         self.optimiser.step()
 
         #Update nn_target
 
-        if time%self.update_target_interval==0:
+        if t%self.update_target_interval==0:
             print("UPDATING TARGET")
             for target_param, param in zip(self.learner.target_nn.parameters(), self.learner.prediction_nn.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
+            return 1
+
     def step(self, time_target:int):
 
-        for i in range(self.n_iter):
+        updates = 0
 
-            print("iteration_coord:", i)
+        while len(self.environment.metro.all_stations)<=10:
+
+            print("iteration_coord:", len(self.environment.metro.all_stations))
 
             self.time+=1
-            L = self.feed_play(self.total_expansions, self.possibilities_to_expand)
-            print("LOSS", L)
+            L = self.feed_play(self.total_suggerable, self.allowed_per_play)
+            #print("LOSS", L)
             self.epsilon*=self.epsilon_decay
 
-            self.backprop(L, self.n_iter*time_target+self.time)
+            updating = self.backprop(L, self.n_iter*time_target+self.time)
+            if updating is not None:
+                updates+=1
+
+        return updates
 
     def reset(self):
 
@@ -217,8 +295,8 @@ metro_params={
     "speed_walk" : 1,
 
     #Times
-    "waiting_for_train": 5,
-    "waiting_when_stopping": 1,
+    "waiting_for_train": 2,
+    "waiting_when_stopping": 0.3,
 
     "max_connected" : 2, # A change station has at most 2 connections (CANNOT BE 0)
 
@@ -237,27 +315,29 @@ city_params={
 }
 
 learning_var={
-    "epsilon":0.8,
-    "epsilon_decay":0.9997,
-    "tau":0.1,
-    "update_target_interval":20,
+    "epsilon":0.9,
+    "epsilon_decay":0.9999,
+    "tau":0.001,
+    "update_target_interval":10,
     "gamma":0.98
 
 }
 
-possibilities_to_expand = 7
-total_expansions = 20
+allowed_per_play = 7
+total_suggerable = 20
 
-coord = Coordinator(200, 300, (0,0), city_params, (0,0), metro_params, 1000, learning_var, 6, possibilities_to_expand , total_expansions)
+coord = Coordinator(50, 500, (0,0), city_params, (0,0), metro_params, 20000, learning_var, 12, allowed_per_play , total_suggerable)
 
 
 all = []
+target_updates = []
+target_updates_r = []
 time_target=0
 
 for i in range(2000):
 
     print("reset", i)
-    coord.step(time_target)
+    updating = coord.step(time_target)
     time_target+=1 #Keep track for the update of the target
 
     if i%10==0:
@@ -270,9 +350,14 @@ for i in range(2000):
     #print(coord.stations_network.all_stations)
     all.append(r)
 
+    if updating>0:
+        target_updates.append(time_target-1)
+        target_updates_r.append(r)
+
     # Generate your plot with the current state of your_list
     plt.figure()
     plt.plot(all)
+    plt.scatter(target_updates, target_updates_r, color='red')
     plt.title('Rewards')
     
     # Save the figure to the same file location every time

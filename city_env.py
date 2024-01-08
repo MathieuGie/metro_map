@@ -24,6 +24,7 @@ class Metropolis:
 
         self.central_city=City(0, central_city)
         self.size=size
+        self.all_possible_pixels = {(a, b) for a in range(-self.size/2+1, self.size/2) for b in range(-self.size/2+1, self.size/2)}
 
         self.p_center = p_center #Evolution rate 
         self.p_new = p_new #Add a new city
@@ -134,7 +135,7 @@ class Metropolis:
                 if possible in self.area: 
 
                     dens, city = self.density[possible]
-                    dens = np.clip(dens+0.25, 0.15, 10)
+                    dens = np.clip(dens+0.5, 0.15, 10)
                     self.density[possible] = (dens, city)
 
                 elif (possible not in self.area) and (possible not in new_pixels):
@@ -176,7 +177,27 @@ class Metropolis:
         
 
         return frame
+    
+    ################################################ 5.
+    def get_best_city_centers(self, n:int):
 
+        total_dens = {}
+        for city in self.all_cities:
+
+            total=0
+            size=len(city.area)
+
+            for pixel in city.area:
+                total+=self.density[pixel][0]
+
+            total_dens[(city.center)]=(total, size)
+
+        sorted_dict = dict(sorted(total_dens.items(), key=lambda item: item[1][0], reverse=True)[:n])
+        max_dens = max(total_dens.values(), key=lambda x: x[0])[0]
+        max_area = max(total_dens.values(), key=lambda x: x[1])[1]
+
+        return sorted_dict, max_dens, max_area
+    
 
 
 

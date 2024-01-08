@@ -71,16 +71,78 @@ class Environment():
     def make_state(self, selected):
 
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
-        scales = [8, 20, 45]
+        scales = [8, 15]
 
-        self.info=torch.zeros((1,83+6*self.max_connected))
+        best_dens, max_dens, max_area = self.metropolis.get_best_city_centers(5)
+
+        self.info=torch.zeros((1,90))
+
+        J=0
+
+        #Info about best cities:
+        for city in best_dens:
+            self.info[0, J] = city[0]/(self.size)+0.5
+            self.info[0, J+1] = city[1]/(self.size)+0.5
+            self.info[0, J+2] = best_dens[city][0]/max_dens
+            self.info[0, J+3] = best_dens[city][1]/max_area
+            J+=4
+
+        ##Info about the station itself:
+        self.info[0, J]=selected.location[0]/(self.size)+0.5
+        self.info[0, J+1]=selected.location[1]/(self.size)+0.5
+
+        dens, area = self.get_dense_around(selected.location)
+        dens_occupied  = self.get_share_already_served(selected.location)
+
+        self.info[0, J+2]=dens/area
+        self.info[0, J+3]=dens_occupied/dens
+
+        if selected.previous is None or selected.next is None: 
+            self.info[0, J+4]=1
+
+        if selected in self.metro.complete:
+            self.info[0, J+5]=1
+
+        J+=6
+
+        #Info about possible locations:
+
+        for scale in range(len(scales)):
+            for neighb in range(len(neighbours)):
+
+                possible = (selected.location[0]+int(scale*neighb[0]), selected.location[1]+int(scale*neighb[1]))
+
+                self.info[0, J]=possible[0]/(self.size)+0.5
+                self.info[0, J+1]=possible[1]/(self.size)+0.5
+
+                dens, area = self.get_dense_around(possible)
+                dens_occupied  = self.get_share_already_served(possible)
+
+                self.info[0, J+2]=dens/area
+                self.info[0, J+3]=dens_occupied/dens
+
+                #closest, closest_dis = self.get_nearest_station(possible)
+
+                #self.info[0, J+4] = closest.location[0]/(self.size)+0.5
+                #self.info[0, J+5] = closest.location[1]/(self.size)+0.5
+                #self.info[0, J+6] = closest_dis/np.max(scales)
+
+                J+=4
+
+        return self.info
+
+        """
+
+        best_dens, max_dens, max_area = self.metropolis.get_best_city_centers(5)
+
+        self.info=torch.zeros((1,80+6*self.max_connected))
 
         #Normalised position
         self.info[0, 0]=selected.location[0]/(self.size)+0.5
         self.info[0, 1]=selected.location[1]/(self.size)+0.5
 
         if selected.location in self.metropolis.area:
-            self.info[0, 2]=self.metropolis.density[selected.location][0]
+            self.info[0, 2]=self.metropolis.density[selected.location][0]/max_dens
 
 
         #If in central city or not
@@ -91,9 +153,9 @@ class Environment():
         if selected in self.metro.complete:
             self.info[0, 4]=1
 
-        j=0
+        self.info[0,5]=len(self.metro.all_stations)/10
 
-        max_density = max(self.metropolis.density[key][0] for key in self.metropolis.density)
+        j=0
 
         #Add the densities at the desired points
         for neighb in neighbours:
@@ -104,27 +166,31 @@ class Environment():
                 if possible[0]<self.size/2 and possible[0]>-self.size/2 and possible[1]<self.size/2 and possible[1]>-self.size/2:
                     if possible in self.metropolis.area:
                         #print("possible", possible, self.metropolis.density[possible][0])
-                        self.info[0, 5+j]=self.metropolis.density[possible][0]/max_density
-                        self.info[0, 6+j]=self.metro.station_already(possible)
-
-                        for s in self.metro.complete:
-                            if possible==s.location:
-                                self.info[0, 7+j]=1
-                                break
+                        self.info[0, 6+j]=self.metropolis.density[possible][0]/max_dens
+                        self.info[0, 7+j]=self.metro.station_already(possible)[0]
+                        self.info[0, 8+j]=self.metro.station_already(possible)[1]
                 j+=3
 
+        J = 6+j
+        for city in best_dens:
+            self.info[0, J] = city[0]/(self.size)+0.5
+            self.info[0, J+1] = city[1]/(self.size)+0.5
+            self.info[0, J+2] = best_dens[city][0]/max_dens
+            self.info[0, J+3] = best_dens[city][1]/max_area
+            J+=4
+
         #Look at the neighbours of the station
-        J = 5+j
+
         if selected.previous is not None:
-            self.info[0, J]=(selected.location[0]-selected.previous.location[0])/(self.size)+0.5
-            self.info[0, J+1]=(selected.location[1]-selected.previous.location[1])/(self.size)+0.5
+            self.info[0, J]=selected.previous.location[0]/(self.size)+0.5
+            self.info[0, J+1]=selected.previous.location[1]/(self.size)+0.5
 
         else:
             self.info[0, J+2]=1
         
         if selected.next is not None:
-            self.info[0, J+3]=(selected.location[0]-selected.next.location[0])/(self.size)+0.5
-            self.info[0, J+4]=(selected.location[1]-selected.next.location[1])/(self.size)+0.5
+            self.info[0, J+3]=selected.next.location[0]/(self.size)+0.5
+            self.info[0, J+4]=selected.next.location[1]/(self.size)+0.5
 
         else:
             self.info[0, J+5]=1
@@ -137,36 +203,30 @@ class Environment():
             for co in selected.connected:
 
                 if co.previous is not None:
-                    self.info[0, J+n*6]=(co.location[0]-co.previous.location[0])/(self.size)+0.5
-                    self.info[0, J+n*6+1]=(co.location[1]-co.previous.location[1])/(self.size)+0.5
+                    self.info[0, J+n*6]=co.previous.location[0]/(self.size)+0.5
+                    self.info[0, J+n*6+1]=co.previous.location[1]/(self.size)+0.5
                 
                 else:
                     self.info[0, J+n*6+2]=1
                 
                 if co.next is not None:
-                    self.info[0, J+n*6+3]=(co.location[0]-co.next.location[0])/(self.size)+0.5
-                    self.info[0, J+n*6+4]=(co.location[1]-co.next.location[1])/(self.size)+0.5
+                    self.info[0, J+n*6+3]=co.next.location[0]/(self.size)+0.5
+                    self.info[0, J+n*6+4]=co.next.location[1]/(self.size)+0.5
 
                 else:
                     self.info[0, J+n*6+5]=1
 
                 n+=1
 
-        
-        while n!=self.max_connected:
-
-            self.info[0, J+n*6+2]=1
-            self.info[0, J+n*6+5]=1
-            n+=1
-
-
         return self.info
+
+    """
     
     ################################################ 2.
     def change_metro(self, station, action):
 
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
-        scales = [8, 20]
+        scales = [8, 15]
 
         if action!=0:
             n = scales[(action-1)//8]
@@ -196,14 +256,17 @@ class Environment():
     ################################################ 4.
     def get_reward(self):
 
+
         reward=0
+        _, max_dens, _ = self.metropolis.get_best_city_centers(5)
+
 
         for _ in range(self.n_simulations):
 
             i_initial, j_initial = self.metropolis.pick_point()
             i_final, j_final = self.metropolis.pick_point()
 
-            while euclidean((i_initial, j_initial),(i_final, j_final))<25:
+            while euclidean((i_initial, j_initial),(i_final, j_final))<5:
                 i_initial, j_initial = self.metropolis.pick_point()
 
             initial = (i_initial, j_initial)
@@ -212,21 +275,16 @@ class Environment():
             walking_time, metro_time, _ = self.metro.get_fastest(initial, final)
 
             if metro_time==np.inf:
-                reward += 0.1
+                reward += 0
 
             else:
                 x = (metro_time-walking_time)/walking_time
-                if x<=0:
-                    reward+= -(10/9)*x+0.4
-                else:
-                    reward+= 0.2
+                if x<=1/4:
+                    reward+= -(4/9)*x+1/9
 
-            #print(reward)
-
-        R = reward/self.n_simulations - copy.deepcopy(self.before_reward)
-        self.before_reward = reward/self.n_simulations
                 
-        return 20*R
+        return reward/self.n_simulations
+
     
     ################################################ 5.
     def reset(self):
@@ -255,6 +313,47 @@ class Environment():
 
         else:
             return self.metro.all_stations[np.random.randint(0, len(self.metro.all_stations))]
+        
+    ################################################ 7.
+    def get_dense_around(self, location):
+
+        density=0
+        total_seen = 0
+        for pixel in self.metropolis.all_possible_pixels:
+
+            if euclidean(pixel, location)<=self.metro.r_walking:
+
+                if pixel in self.metropolis.area:
+                    density+=self.metropolis.density[pixel][0]
+
+                total_seen+=1
+
+        return density, total_seen
+    
+    def get_nearest_station(self, location):
+
+        closest = None
+        dis_closest = np.inf
+        for station in self.metro.all_stations:
+            if euclidean(station.location, location)<dis_closest:
+                closest = station
+                dis_closest = euclidean(station.location, location)
+
+        return closest, dis_closest
+    
+    def get_share_already_served(self, location):
+
+        density_served = 0
+        for pixel in self.metropolis.area:
+            if euclidean(pixel, location)<=self.metro.r_walking:
+
+                for station in self.metro.all_stations:
+                    if euclidean(station.location, pixel)<=self.metro.r_walking:
+                        density_served+= self.metropolis.density[pixel][0]
+
+        return density_served
+                
+
 
 
         

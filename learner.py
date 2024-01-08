@@ -23,21 +23,22 @@ class Learner():
 
     def predict(self, x: torch.tensor, epsilon: float):
 
-        out = self.prediction_nn.forward(x)
+        with torch.no_grad():
+            out = self.prediction_nn.forward(x)
 
-        #POLICY
-        proba=np.random.uniform(0,1)
+            #POLICY
+            proba=np.random.uniform(0,1)
 
-        if proba>epsilon:
-            self.action=out.argmax()
-        else:
-            self.action=int(np.random.randint(0,17))
+            if proba>epsilon:
+                self.action=int(out.argmax())
+            else:
+                self.action=int(np.random.randint(0,17))
 
-        #print("action", self.action)
+            #print("action", self.action)
 
-        self.y_hat=out[:,self.action][0]
+            self.y_hat=out[:,self.action][0]
 
-        #print("y_hat", self.y)
+            #print("y_hat", self.y)
 
     def predict_for_replay(self, x: torch.tensor, action: int):
 
@@ -45,16 +46,14 @@ class Learner():
         self.y_hat=out[:,action][0]
 
 
-    def target(self, x: torch.tensor, r: int, actions_left):
+    def target(self, x: torch.tensor, r: int, final):
 
         with torch.no_grad():
 
             get_a=self.prediction_nn.forward(x)
 
-            if actions_left!=0:
-                self.action2=get_a.max(dim=1).indices
-            else:
-                self.action2=torch.tensor([0])
+            self.action2=get_a.max(dim=1).indices
+
 
             #print("action2", self.action2)
 
@@ -64,7 +63,10 @@ class Learner():
             Q_next=out2[:,self.action2][0][0]
 
             #y
-            self.y=r+ self.gamma*Q_next
+            if final is True:
+                self.y = torch.tensor(r, dtype=torch.float32)
+            else:
+                self.y= torch.tensor(r, dtype=torch.float32) + self.gamma*Q_next
 
         #print("y", self.y_hat)
 
