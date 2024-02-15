@@ -24,7 +24,7 @@ class Metropolis:
 
         self.central_city=City(0, central_city)
         self.size=size
-        self.all_possible_pixels = {(a, b) for a in range(-self.size/2+1, self.size/2) for b in range(-self.size/2+1, self.size/2)}
+        self.all_possible_pixels = {(a, b) for a in range(int(-self.size/2+1), int(self.size/2)) for b in range(int(-self.size/2+1), int(self.size/2))}
 
         self.p_center = p_center #Evolution rate 
         self.p_new = p_new #Add a new city

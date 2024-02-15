@@ -261,6 +261,7 @@ class Stations_network:
 
             self.E={}
 
+            #Adding all edges of metro (between next and previous and connections)
             for line in self.lines:
                 
                 station = self.lines[line].starting
@@ -287,13 +288,14 @@ class Stations_network:
 
                     station = station.next
 
+            #Adding connections to the 2 given points and stations
             for i in range(2):
                 for k in neighbours[i]:
                     self.E[k]=neighbours[i][k]
 
 
             #if np.random.uniform(0,1)<0.0001:
-            if 0==1:
+            if 1==0:
 
                 print(self.display(False))
                 time.sleep(1)
@@ -318,8 +320,12 @@ class Stations_network:
                 nx.draw(G, with_labels=True, node_color=node_color, node_size=500, font_size=8, font_weight='bold')
                 plt.title("Graph Visualization")
 
+                metro_time, summary_metro=dijkstra(self.V,self.E,a,b)
+                walking_time=euclidean(a, b)/self.speed_walk
+                plt.text(0.5, 0.95, "walking: "+str(walking_time)+" , "+"metro: "+str(metro_time), fontsize=12, ha='center', va='center', transform=plt.gca().transAxes)
+
                 # Save the graph image to a file
-                graph_image_path = '/Users/mathieugierski/Library/CloudStorage/OneDrive-Personnel/metro/metro_map/graph_visualization.png'  # Replace with your desired file path
+                graph_image_path = '/Users/mathieugierski/Nextcloud/Macbook M3/metro/metro_map/graph_visualization.png'  # Replace with your desired file path
                 plt.savefig(graph_image_path)
 
                 plt.close()
