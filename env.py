@@ -345,7 +345,19 @@ class Environment():
             walking_time, metro_time, _ = self.metro.get_fastest(initial, final)
 
             if metro_time==np.inf:
-                reward += 0
+
+                dis_initial = self.metro.get_dis_closest_station(initial)
+                dis_final = self.metro.get_dis_closest_station(final)
+                max_dis = np.max([dis_initial, dis_final])
+
+                if max_dis>4*self.r_walking:
+                    reward+=0.05
+                elif max_dis>3*self.r_walking:
+                    reward+=0.1
+                elif max_dis>2*self.r_walking:
+                    reward+=0.2
+                else:
+                    reward+=0.3
 
             else:
                 #x = (metro_time-walking_time)/walking_time
@@ -353,17 +365,17 @@ class Environment():
                     #reward+= -(4/9)*x+1/9
                 
                 if metro_time*9<walking_time:
-                    reward+=1
+                    reward+=1.5
                 elif metro_time*8<walking_time:
-                    reward+=0.9
+                    reward+=1.2
                 elif metro_time*7<walking_time:
-                    reward+=0.6
+                    reward+=1
                 elif metro_time*6<walking_time:
-                    reward+=0.4
-                elif metro_time*5.5<walking_time:
-                    reward+=0.2
+                    reward+=0.8
+                elif metro_time*5<walking_time:
+                    reward+=0.6
                 else:
-                    reward+=0.05
+                    reward+=0.3
 
         return reward/self.n_simulations
 

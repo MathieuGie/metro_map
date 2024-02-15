@@ -339,6 +339,18 @@ class Stations_network:
             return (walking_time, metro_time, summary_metro)
         
 
+    def get_dis_closest_station(self, point):
+
+        max_dis = np.inf
+        for station in self.all_stations:
+            if euclidean(point, station.location)<=max_dis:
+
+                max_dis = euclidean(point, station.location)
+
+        return max_dis
+
+
+
     ################################################ 4.
     def display(self, frame=True):
 
