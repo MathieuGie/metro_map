@@ -97,7 +97,7 @@ class Coordinator:
          
         ###############
         #Now sample from REPLAY BUFFER:
-        samples = self.buffer.sample(256)
+        samples = self.buffer.sample(128)
 
         for sample in samples:
 
@@ -301,13 +301,13 @@ class Coordinator:
 metro_params={
 
     #Distances
-    "speed_metro" : 10,
+    "speed_metro" : 15,
     "speed_change" : 1,
     "speed_walk" : 1,
 
     #Times
-    "waiting_for_train": 0, #2
-    "waiting_when_stopping": 0, #0.3
+    "waiting_for_train": 1, #2
+    "waiting_when_stopping": 0.5, #0.3
 
     "max_connected" : 2, # A change station has at most 2 connections (CANNOT BE 0)
 
@@ -337,7 +337,7 @@ learning_var={
 allowed_per_play = 7
 total_suggerable = 20
 
-coord = Coordinator(50, 1000, (0,0), city_params, (0,0), metro_params, 200000, learning_var, 12, allowed_per_play , total_suggerable)
+coord = Coordinator(50, 500, (0,0), city_params, (0,0), metro_params, 200000, learning_var, 12, allowed_per_play , total_suggerable)
 
 
 all = []

@@ -284,7 +284,7 @@ class Stations_network:
 
                             
                             if ((station.location, station.line), (co.location, co.line)) not in list(self.E.keys()) and ((co.location, co.line), (station.location, station.line)) not in list(self.E.keys()):
-                                self.E[((station.location, station.line), (co.location, co.line))]=(2+euclidean(station.location, co.location))/self.speed_change
+                                self.E[((station.location, station.line), (co.location, co.line))]=(2+euclidean(station.location, co.location))/self.speed_change + self.waiting_for_train
 
                     station = station.next
 
@@ -294,8 +294,8 @@ class Stations_network:
                     self.E[k]=neighbours[i][k]
 
 
-            #if np.random.uniform(0,1)<0.0001:
-            if 1==0:
+            if np.random.uniform(0,1)<0.0001:
+            #if 1==0:
 
                 print(self.display(False))
                 time.sleep(1)

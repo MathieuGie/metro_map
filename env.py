@@ -336,7 +336,7 @@ class Environment():
             i_initial, j_initial = self.metropolis.pick_point()
             i_final, j_final = self.metropolis.pick_point()
 
-            while euclidean((i_initial, j_initial),(i_final, j_final))<self.r_walking:
+            while euclidean((i_initial, j_initial),(i_final, j_final))<1.8*self.r_walking:
                 i_initial, j_initial = self.metropolis.pick_point()
 
             initial = (i_initial, j_initial)
@@ -348,34 +348,36 @@ class Environment():
 
                 dis_initial = self.metro.get_dis_closest_station(initial)
                 dis_final = self.metro.get_dis_closest_station(final)
-                max_dis = np.max([dis_initial, dis_final])
+                l_dis = [dis_initial, dis_final]
 
-                if max_dis>4*self.r_walking:
-                    reward+=0.05
-                elif max_dis>3*self.r_walking:
-                    reward+=0.1
-                elif max_dis>2*self.r_walking:
-                    reward+=0.2
-                else:
-                    reward+=0.3
+                for dis in l_dis:
+
+                    if dis>3*self.r_walking:
+                        reward+=0.05/2
+                    elif dis>2*self.r_walking:
+                        reward+=0.2/2
+                    elif dis>self.r_walking:
+                        reward+=0.3/2
+                    else:
+                        reward+=0.45/2
 
             else:
                 #x = (metro_time-walking_time)/walking_time
                 #if x<=1/4:
                     #reward+= -(4/9)*x+1/9
                 
-                if metro_time*9<walking_time:
-                    reward+=1.5
-                elif metro_time*8<walking_time:
-                    reward+=1.2
-                elif metro_time*7<walking_time:
+                if metro_time*2.5<walking_time:
                     reward+=1
-                elif metro_time*6<walking_time:
-                    reward+=0.8
-                elif metro_time*5<walking_time:
+                elif metro_time*2<walking_time:
+                    reward+=0.95
+                elif metro_time*1.6<walking_time:
+                    reward+=0.9
+                elif metro_time*1.3<walking_time:
+                    reward+=0.85
+                elif metro_time<walking_time:
                     reward+=0.6
                 else:
-                    reward+=0.3
+                    reward+=0.5
 
         return reward/self.n_simulations
 
