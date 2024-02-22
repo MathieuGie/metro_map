@@ -7,13 +7,13 @@ class nn(tnn.Module):
     def __init__(self, k :int):
         super().__init__()
 
-        self.fc1 = tnn.Linear(143, 512)
-        self.norm1 = tnn.BatchNorm1d(512)
-        self.fc2 = tnn.Linear(512, 256)
-        self.norm2 = tnn.BatchNorm1d(256)
-        self.fc3 = tnn.Linear(256, 80)
-        self.norm3 = tnn.BatchNorm1d(80)
-        self.fc4 = tnn.Linear(80, 16)
+        self.fc1 = tnn.Linear(125, 256)
+        self.norm1 = tnn.BatchNorm1d(256)
+        self.fc2 = tnn.Linear(256, 128)
+        self.norm2 = tnn.BatchNorm1d(128)
+        self.fc3 = tnn.Linear(128, 32)
+        self.norm3 = tnn.BatchNorm1d(32)
+        self.fc4 = tnn.Linear(32, 8)
 
         self.relu = tnn.LeakyReLU()
         self.tanh = tnn.Tanh()

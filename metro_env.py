@@ -111,10 +111,28 @@ class Stations_network:
     ################################################ 2.
     def make_new_station(self, station, i, j, returning=False):
 
+        already_exists=0
         for s in self.complete:
             if (i,j)==s.location:
+
+                print("already one complete there")
                 #Cannot put a station where there is a complete change already
                 return None
+            
+        for s in self.all_stations:
+            if (i,j)==s.location:
+
+                if s.previous is not None:
+                    if s.previous.location == station.location:
+                        already_exists=1
+                        print("already the same link found")
+                        break
+
+                if s.next is not None:
+                    if s.next.location == station.location:
+                        already_exists=1
+                        print("already the same link found")
+                        break
 
         new = Station(i,j)
         L = self.display(frame=False)
@@ -208,11 +226,16 @@ class Stations_network:
 
                 #Need to add this for the returning otherwise returns stupid thing
                 elif returning:
+                    print("did everything")
                     return None
 
         if returning:
-            #print("new", new.location, new.line)
-            return new
+
+            if already_exists==1:
+                return (new, 0)
+            else:
+                #print("new", new.location, new.line)
+                return new
 
 
     ################################################ 3.
@@ -245,7 +268,7 @@ class Stations_network:
 
             walking_time=euclidean(a, b)/self.speed_walk
             return (walking_time, np.infty, None)
-        
+  
         else:
 
             self.V = set()
@@ -294,11 +317,11 @@ class Stations_network:
                     self.E[k]=neighbours[i][k]
 
 
-            if np.random.uniform(0,1)<0.0001:
-            #if 1==0:
+            if np.random.uniform(0,1)<0.001:
+            #if 0==0:
 
                 print(self.display(False))
-                time.sleep(1)
+                #time.sleep(5)
                 # Create a graph object
                 G = nx.Graph()
 
@@ -337,6 +360,7 @@ class Stations_network:
             #print("summary", walking_time, metro_time)
 
             return (walking_time, metro_time, summary_metro)
+
         
 
     def get_dis_closest_station(self, point):
