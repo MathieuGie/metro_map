@@ -9,6 +9,10 @@ import matplotlib.pyplot as plt
 import time
 import copy
 
+def euclidean(a, b):
+    a = np.array(a)
+    b = np.array(b)
+    return np.sqrt(np.sum((a - b) ** 2, axis=-1))
 
 
 def calculate_averages(lst, chunk_size=250):
@@ -17,6 +21,8 @@ def calculate_averages(lst, chunk_size=250):
 class Coordinator:
 
     def __init__(self, size, n_simulations, city_center, city_facts, first_station, metro_facts, buffer_size, learning_var, n_iter, allowed_per_play, total_suggerable):
+
+        self.size = size
 
         self.environment = Environment(size, n_simulations, city_center, city_facts, first_station, metro_facts)
         self.buffer = ReplayBuffer(buffer_size)
@@ -32,6 +38,7 @@ class Coordinator:
 
         self.optimiser =torch.optim.Adam(self.learner.prediction_nn.parameters(), lr=0.001)
         self.average_reward = 0
+        self.final_reward = 0
         self.total_reward = 0
         self.time = 0
 
@@ -42,114 +49,77 @@ class Coordinator:
 
         self.previous_r=0
 
+
     def feed_play(self, final):
         
         L = None
 
-        #T=[]
-        #T.append(time.time()-start_time)
-        for _ in range(2):
-
-            #Select the station that has the best Q_value or at random (using epsilon proba)
-            #At random is more likely to select stations at start or end of lines (see env.select_station)
-            
-            #T.append((time.time()-start_time, "beg"))
-            if np.random.uniform(0,1)>self.epsilon/2:
-                all_Q = {}
-                with torch.no_grad():
-                    for station in self.environment.metro.all_stations:
-
-                        if station not in self.environment.metro.complete or station.previous is None or station.next is None:
-
-                            state = self.environment.make_state(station, self.n_iter)
-                            Q_values = self.learner.prediction_nn.forward(state)
-                            all_Q[station] = Q_values[:,1:]
-
-                if all_Q!={}: #Need this in case all stations are in complete (unlikely but happens)
-                    averages = [(key, torch.max(value).item()) for key, value in all_Q.items()]
-                    best_station = max(averages, key=lambda x: x[1])[0]
-                else:
-                    best_station = self.environment.select_station()
-            
-            else:
-                best_station = self.environment.select_station()
-
-            #T.append((time.time()-start_time, "select q"))
-
-            #Using selected station, make state and predict
-            state = self.environment.make_state(best_station, self.n_iter)
-            #T.append((time.time()-start_time, "make state"))
-            self.learner.predict(state, self.epsilon)
-            #T.append((time.time()-start_time, "predict"))
-            action = self.learner.action
-
-            #Change metro and city with selected action
-            new = self.environment.change_metro(best_station, action)
-            #self.environment.change_metropolis()
-
-            #Get reward
-            #T.append((time.time()-start_time, "change metro"))
-
-            if new is None:
-                r = 0
-                self.previous_r=0
-            elif new==0:
-                r = max((self.environment.get_reward() - self.previous_r),0)/2
-                self.previous_r=0
-            else:
-                r = max((self.environment.get_reward() - self.previous_r),0)
-                self.previous_r=0
-
-            """
-            #Final or not:
-            if len(self.environment.metro.all_stations)>=self.n_iter:
-                final=True
-                
-                self.average_reward+=r
-                print("HELLO", len(self.environment.metro.all_stations))
-                break
-            else:
-                final=False
-            """
-
-            #T.append((time.time()-start_time, "reward"))
-
-            #Make new state 
-                
-            #NEXT STATE:
-            """
-            all_Q_new = {}
+        #Select the station that has the best Q_value or at random (using epsilon proba)
+        #At random is more likely to select stations at start or end of lines (see env.select_station)
+        
+        #T.append((time.time()-start_time, "beg"))
+        if np.random.uniform(0,1)>self.epsilon:
+            all_Q = {}
             with torch.no_grad():
                 for station in self.environment.metro.all_stations:
 
                     if station not in self.environment.metro.complete or station.previous is None or station.next is None:
 
-                        state = self.environment.make_state(station, self.n_iter)
+                        state = self.environment.make_state(station, self.n_iter, final, 0)
                         Q_values = self.learner.prediction_nn.forward(state)
-                        all_Q_new[station] = Q_values[:,1:]
+                        all_Q[station] = Q_values[:,1:]
 
-            if all_Q_new!={}: #Need this in case all stations are in complete (unlikely but happens)
-                averages = [(key, torch.max(value).item()) for key, value in all_Q_new.items()]
+            if all_Q!={}: #Need this in case all stations are in complete (unlikely but happens)
+                averages = [(key, torch.max(value).item()) for key, value in all_Q.items()]
                 best_station = max(averages, key=lambda x: x[1])[0]
             else:
                 best_station = self.environment.select_station()
-
-            """
-
-            new_state = self.environment.make_state(best_station, self.n_iter)
-            #T.append((time.time()-start_time, "make state 2"))
-
-            self.buffer.push((state, action, r, new_state, final))
-
-            self.learner.target(new_state, r, final)
-
-            #T.append((time.time()-start_time, "push to replay"))
-
-            self.average_reward+=r
-            self.total_reward+=1
         
-        #T2=[]
-        #T2.append(time.time()-start_time)
+        else:
+            best_station = self.environment.select_station()
+
+        #T.append((time.time()-start_time, "select q"))
+
+        #Using selected station, make state and predict
+        state = self.environment.make_state(best_station, self.n_iter, final, 0)
+        #T.append((time.time()-start_time, "make state"))
+        self.learner.predict(state, self.epsilon)
+        #T.append((time.time()-start_time, "predict"))
+        action = self.learner.action
+
+        #Change metro and city with selected action
+        new = self.environment.change_metro(best_station, action)
+        #self.environment.change_metropolis()
+
+        #Get reward
+        #T.append((time.time()-start_time, "change metro"))
+
+        if new is None:
+            r = 0
+        #elif new==0:
+        #r = max(self.environment.get_reward(),0)/2 
+        else:
+            r = self.environment.get_reward()
+            #new_r = self.environment.get_reward()
+            #r = 5*max((new_r-self.previous_r),0)
+            #self.previous_r=copy.deepcopy(new_r)
+
+        #Make new state 
+        new_state = self.environment.make_state(best_station, self.n_iter, final, 1)
+        #T.append((time.time()-start_time, "make state 2"))
+
+        self.buffer.push((state, action, r, new_state, final))
+
+        self.learner.target(new_state, r, final)
+
+        #T.append((time.time()-start_time, "push to replay"))
+
+        self.average_reward+=r
+        self.total_reward+=1
+
+        if final is True:
+            self.final_reward = max(self.environment.get_reward() ,0)
+        
         ###############
         #Now sample from REPLAY BUFFER:
         samples = self.buffer.sample(128)
@@ -195,11 +165,11 @@ class Coordinator:
         #while len(self.environment.metro.all_stations)<self.n_iter:
 
         final=False
-        for i in range(6):
+        for i in range(self.n_iter):
 
             print("iteration_coord:", i, len(self.environment.metro.all_stations))
 
-            if i==5:
+            if i==self.n_iter-1:
                 final=True
 
             self.time+=1
@@ -218,14 +188,17 @@ class Coordinator:
 
         self.average_reward /= self.total_reward
         out = self.average_reward
+        final_r = self.final_reward
 
+        self.previous_r=0
         self.average_reward=0
         self.total_reward=0
+        self.final_reward=0
         self.time=0
 
         self.environment.reset()
 
-        return out
+        return out, final_r
     
     def display(self, show=True):
 
@@ -256,6 +229,22 @@ class Coordinator:
             plt.show()
         else:
             plt.close()
+
+        if len(self.environment.metro.all_stations)>=2:
+
+            i_initial, j_initial = self.environment.metro.all_stations[0].location
+            i_final, j_final = self.environment.metro.all_stations[-1].location
+
+            initial = (i_initial, j_initial)
+            final = (i_final, j_final)
+
+            ok = self.environment.metro.get_fastest(initial, final, display=True)
+
+        else:
+            print("ALERT")
+            for i in self.environment.metro.all_stations:
+                print(i.location)
+
     
 
 ###############################
@@ -270,15 +259,15 @@ metro_params={
 
     #Times
     "waiting_for_train": 1, #2
-    "waiting_when_stopping": 0.5, #0.3
+    "waiting_when_stopping": 0.6, #0.3
 
     "max_connected" : 2, # A change station has at most 2 connections (CANNOT BE 0)
 
-    "r_walking" : 3,
+    "r_walking" : 4,
     "k_walking" : 6,
     "make_connection_distance":3,
 
-    "p_selecting_station":0.7 # chance of prolongating a line instead of randomly selecting a station (when not picking station based on best q_value)
+    "p_selecting_station":0.8 # chance of prolongating a line instead of randomly selecting a station (when not picking station based on best q_value)
 }
 
 city_params={
@@ -290,9 +279,9 @@ city_params={
 
 learning_var={
     "epsilon":0.95,
-    "epsilon_decay":0.99998,
+    "epsilon_decay":0.999995,
     "tau":0.05,
-    "update_target_interval":50,
+    "update_target_interval":100,
     "gamma":0.98
 
 }
@@ -301,11 +290,14 @@ learning_var={
 allowed_per_play = 7
 total_suggerable = 20
 
+n_iter = 18
+
 start_time = time.time()
-coord = Coordinator(35, 200, (0,0), city_params, (0,0), metro_params, 200000, learning_var, 16, allowed_per_play , total_suggerable)
+coord = Coordinator(35, 200, (0,0), city_params, (0,0), metro_params, 90000000, learning_var, n_iter, allowed_per_play , total_suggerable)
 
 
 all = []
+all_final = []
 target_updates = []
 target_updates_r = []
 time_target=0
@@ -320,11 +312,12 @@ for i in range(80000):
         print("DISPLAYING")
         coord.display(show=False)
 
-    r = coord.reset()
+    r, final_r = coord.reset()
     print("r:", r)
     print("epsilon:", coord.epsilon)
     #print(coord.stations_network.all_stations)
     all.append(r)
+    all_final.append(final_r)
 
     if updating>0:
         target_updates.append(time_target-1)
@@ -333,8 +326,10 @@ for i in range(80000):
     # Generate your plot with the current state of your_list
         
     averages = calculate_averages(all)
+    averages_final = calculate_averages(all_final)
     plt.figure()
     plt.plot(averages)
+    plt.plot(averages_final)
     #plt.scatter(target_updates, target_updates_r, color='red')
     plt.title('Rewards')
     

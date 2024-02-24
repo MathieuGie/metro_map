@@ -32,7 +32,7 @@ class Learner():
             if proba>epsilon:
                 self.action=int(out.argmax())
             else:
-                self.action=int(np.random.randint(0,8))
+                self.action=int(np.random.randint(0,16))
 
             #print("action", self.action)
 

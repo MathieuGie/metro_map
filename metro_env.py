@@ -239,7 +239,7 @@ class Stations_network:
 
 
     ################################################ 3.
-    def get_fastest(self, a, b):
+    def get_fastest(self, a, b, display=False):
 
         #First see if a or b is not connected to the graph (so no diksjtra)
         neighbours = [{},{}]
@@ -317,8 +317,7 @@ class Stations_network:
                     self.E[k]=neighbours[i][k]
 
 
-            if np.random.uniform(0,1)<0.001:
-            #if 0==0:
+            if display is True:
 
                 print(self.display(False))
                 #time.sleep(5)
@@ -352,6 +351,7 @@ class Stations_network:
                 plt.savefig(graph_image_path)
 
                 plt.close()
+                return 0
 
             #Run Dijkstra on this graph and compare:
             metro_time, summary_metro=dijkstra(self.V,self.E,a,b)

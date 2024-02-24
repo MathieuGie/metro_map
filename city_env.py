@@ -37,6 +37,7 @@ class Metropolis:
         self.density = {}
         self.density[self.central_city.center]=(0.5,central_city)
 
+
     ################################################ 1.
     def step(self, n_new_cities:int):
 
@@ -175,7 +176,6 @@ class Metropolis:
         for pix in self.density:
             frame[pix[1]+mid, pix[0]+mid] = self.density[pix][0]
         
-
         return frame
     
     ################################################ 5.
