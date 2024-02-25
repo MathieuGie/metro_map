@@ -585,3 +585,38 @@ class Stations_network:
                     self.complete.add(station)
 
 
+
+    def is_on_shortest_path(self, a, b, v):
+
+        connections = self.add_points(a, b)
+
+        if connections is None:
+            return None
+        
+        _, distance = dijkstra(connections[0], connections[1], a, b)
+        if v not in distance:
+            return None
+
+        current = b
+        path_nodes = [b]
+        while current != a:
+            current = distance[current][1]  # Move to the predecessor
+            if current is None:
+                return "not on path"  # If there's no predecessor, v isn't on the path
+            path_nodes.append(current)
+
+        if v in path_nodes:
+            if path_nodes[1] == v and path_nodes[-2] == v:
+                return 0
+            elif path_nodes[-2] == v:
+                return 1
+            elif path_nodes[1] == v:
+                return 2
+            else:
+                return 3
+        else:
+            return None
+
+
+
+

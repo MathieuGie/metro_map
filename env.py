@@ -74,6 +74,7 @@ class Environment():
 
         self.initial_points=[]
         self.final_points=[]
+        self.set_points()
     
     ################################################ 1.
     def make_state(self, selected, n_iter, final, state_of_final):
@@ -83,12 +84,12 @@ class Environment():
 
         #T.append((time.time()-start_time, "beginning"))
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
-        scales = [6, 12]
+        scales = [8]
 
         #neighbours = [(1,0), (0,1), (-1,0), (0, -1)]
         #scales = [6]
 
-        self.info=torch.zeros((1,222))
+        self.info=torch.zeros((1,145))
         J=0
 
         #0. If final or not:
@@ -151,7 +152,12 @@ class Environment():
         #2. n_iter
         #size of metro:
         self.info[0, J] = len(self.metro.all_stations)/n_iter
-        J+=1
+
+        found_from, found_to, found = self.from_to_find_station(selected)
+        self.info[0, J+1] = found_from
+        self.info[0, J+2] = found_to
+        self.info[0, J+3] = found
+        J+=4
         J_before=J
 
         #3. cities
@@ -232,7 +238,7 @@ class Environment():
 
         #T.append((time.time()-start_time, "locations around"))
 
-        J = J_before+10*16 #16 before (with the 16 actions)
+        J = J_before+10*8 #16 before (with the 16 actions)
 
         #5. Check current area:
         dens, area = self.get_dense_around(selected.location)
@@ -294,34 +300,34 @@ class Environment():
 
     ################################################ 4.
                 
+    def set_points(self):
+
+        for _ in range(self.n_simulations):
+
+            i_initial, j_initial = self.metropolis.pick_point()
+            i_final, j_final = self.metropolis.pick_point()
+
+            done=1
+            coef = 2
+            while euclidean((i_initial, j_initial),(i_final, j_final))<coef*self.r_walking:
+                i_initial, j_initial = self.metropolis.pick_point()
+                done+=1
+
+                if done>=3:
+                    coef = 1.5
+
+
+            initial = (i_initial, j_initial) #No +mid here
+            final = (i_final, j_final)
+
+            self.initial_points.append(initial)
+            self.final_points.append(final)
+
+
+                
     def get_reward(self):
 
         reward=0
-        #_, max_dens, _ = self.metropolis.get_best_city_centers(5)
-
-        #Compute only once the points as city does not change (for now)
-        if self.initial_points==[]:
-
-            for _ in range(self.n_simulations):
-
-                i_initial, j_initial = self.metropolis.pick_point()
-                i_final, j_final = self.metropolis.pick_point()
-
-                done=1
-                coef = 2
-                while euclidean((i_initial, j_initial),(i_final, j_final))<coef*self.r_walking:
-                    i_initial, j_initial = self.metropolis.pick_point()
-                    done+=1
-
-                    if done>=3:
-                        coef = 1.5
-
-
-                initial = (i_initial, j_initial) #No +mid here
-                final = (i_final, j_final)
-
-                self.initial_points.append(initial)
-                self.final_points.append(final)
 
         
         for i in range(len(self.initial_points)):
@@ -550,3 +556,28 @@ class Environment():
         return area
 
     """
+
+    def from_to_find_station (self, selected):
+
+        v = (selected.location, selected.line)
+
+        found_from = 0
+        found_to = 0
+        found = 0
+
+        for i in range(len(self.initial_points)):
+
+            result = self.metro.is_on_shortest_path(self.initial_points[i], self.final_points[i], v)
+
+            if result is not None:
+                if result == 0:
+                    found_from+=1
+                    found_to+=1
+                elif result==1:
+                    found_from=1
+                elif result==2:
+                    found_to+=1
+                else:
+                    found+=1
+
+        return found_from/self.n_simulations, found_to/self.n_simulations, found/self.n_simulations
