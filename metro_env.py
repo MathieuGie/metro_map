@@ -67,6 +67,8 @@ class Stations_network:
         self.k_walking = k_walking
         self.make_connection_distance = make_connection_distance
 
+        self.set_V_E()
+
     ################################################ 1.
     def make_change_station(self, station:Station):
         #adding a new line from a given station
@@ -239,6 +241,87 @@ class Stations_network:
 
 
     ################################################ 3.
+            
+    def set_V_E(self):
+
+        self.V = set()
+        self.E={}
+
+        for s in self.all_stations:
+            self.V.add((s.location, s.line))
+
+        #Adding all edges of metro (between next and previous and connections)
+        for line in self.lines:
+            
+            station = self.lines[line].starting
+
+            while station is not None:
+
+                if station.next is not None and station.location!=station.next.location:
+                    if ((station.location, station.line), (station.next.location, station.next.line)) not in list(self.E.keys()) and ((station.next.location, station.next.line), (station.location, station.line)) not in list(self.E.keys()):
+                        self.E[((station.location, station.line), (station.next.location, station.next.line))]=euclidean(station.location, station.next.location)/self.speed_metro + self.waiting_when_stopping
+
+                if station.connected!=set():
+
+                    if len(station.connected)>self.max_connected:
+                        print("problem, station has too many connections")
+
+                    for co in station.connected:
+
+                        if co==station:
+                            print("problem, station connected to itself", co.location, co.line)
+
+                        
+                        if ((station.location, station.line), (co.location, co.line)) not in list(self.E.keys()) and ((co.location, co.line), (station.location, station.line)) not in list(self.E.keys()):
+                            self.E[((station.location, station.line), (co.location, co.line))]=(2+euclidean(station.location, co.location))/self.speed_change + self.waiting_for_train
+
+                station = station.next
+
+    def add_points(self, a, b):
+
+        #Add points a anc b to V and E
+        neighbours = [{},{}]
+        done=[]
+        i=0
+        for p in [a, b]:
+            for station in self.all_stations:
+
+                if euclidean(p, station.location)<=self.r_walking:
+
+                    if p not in done:
+                        done.append(p)
+        
+                    if len(list(neighbours[i].keys()))<self.k_walking:
+                        neighbours[i][(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk + self.waiting_for_train
+                        neighbours[i]={k: v for k, v in sorted(neighbours[i].items(), key=lambda item: item[1])}
+
+                    elif euclidean(p, station.location)<list(neighbours[i].values())[-1]:
+                        del neighbours[i][list(neighbours[i].keys())[-1]]
+                        neighbours[i][(p, (station.location, station.line))]=euclidean(p, station.location)/self.speed_walk + self.waiting_for_train
+                        neighbours[i]={k: v for k, v in sorted(neighbours[i].items(), key=lambda item: item[1])}
+
+            i+=1
+
+        if len(done)!=2:
+
+            return None
+  
+        else:
+
+            V = copy.deepcopy(self.V)
+            E = copy.deepcopy(self.E)
+
+            V.add(a)
+            V.add(b)
+
+            for i in range(2):
+                for k in neighbours[i]:
+                    E[k]=neighbours[i][k]
+
+            return V, E
+
+
+    """
     def get_fastest(self, a, b, display=False):
 
         #First see if a or b is not connected to the graph (so no diksjtra)
@@ -361,7 +444,62 @@ class Stations_network:
 
             return (walking_time, metro_time, summary_metro)
 
+    """
+
+    def get_fastest(self, a, b, display=False):
+
+        connections = self.add_points(a, b)
+
+        if connections is None:
+            return (euclidean(a, b)/self.speed_walk, np.infty, None)
         
+        else:
+
+            if display is True:
+
+                print(self.display(False))
+                #time.sleep(5)
+                # Create a graph object
+                G = nx.Graph()
+
+                # Add vertices and edges to the graph
+                G.add_nodes_from(self.V)
+                G.add_edges_from(self.E)
+
+                color_map = {1:"red", 2:"darkorange", 3:"gold", 4:"yellow", 5:"lime", 6:"green", 7:"cyan",8:"dodgerblue", 
+                             9:"blue",10:"purple",11:"blueviolet", 12:"magenta", 13:"pink",14:"crimson", 15:"maroon"}
+                default_color = 'gray'
+
+                node_color = [
+                    color_map.get(node[1], default_color)
+                    if isinstance(node, tuple) and isinstance(node[0], tuple) else default_color
+                    for node in G.nodes()
+]
+                # Draw the graph
+                plt.figure(figsize=(8, 6))
+                nx.draw(G, with_labels=True, node_color=node_color, node_size=500, font_size=8, font_weight='bold')
+                plt.title("Graph Visualization")
+
+                metro_time, summary_metro=dijkstra(connections[0],connections[1],a,b)
+                walking_time=euclidean(a, b)/self.speed_walk
+                plt.text(0.5, 0.95, "walking: "+str(walking_time)+" , "+"metro: "+str(metro_time), fontsize=12, ha='center', va='center', transform=plt.gca().transAxes)
+
+                # Save the graph image to a file
+                graph_image_path = '/Users/mathieugierski/Nextcloud/Macbook M3/metro/metro_map/graph_visualization.png'  # Replace with your desired file path
+                plt.savefig(graph_image_path)
+
+                plt.close()
+                return 0
+
+            #Run Dijkstra on this graph and compare:
+            metro_time, summary_metro=dijkstra(connections[0],connections[1],a,b)
+            walking_time=euclidean(a, b)/self.speed_walk
+
+            #print("summary", walking_time, metro_time)
+
+            return (walking_time, metro_time, summary_metro)
+
+
 
     def get_dis_closest_station(self, point):
 

@@ -88,7 +88,7 @@ class Environment():
         #neighbours = [(1,0), (0,1), (-1,0), (0, -1)]
         #scales = [6]
 
-        self.info=torch.zeros((1,211))
+        self.info=torch.zeros((1,222))
         J=0
 
         #0. If final or not:
@@ -163,14 +163,19 @@ class Environment():
             self.info[0, J] = city[0]/(self.size)+0.5
             self.info[0, J+1] = city[1]/(self.size)+0.5
 
+            walking, metro, _ = self.metro.get_fastest(city, selected.location)
+
+            if metro!=np.infty:
+                self.info[0, J+2] = metro/(4*walking)
+
             if J!=J_before:
-                self.info[0, J+2] = best_dens[city][0]/max_dens
-                self.info[0, J+3] = best_dens[city][1]/max_area
-                J+=4
+                self.info[0, J+3] = best_dens[city][0]/max_dens
+                self.info[0, J+4] = best_dens[city][1]/max_area
+                J+=5
             else:
                 J+=2
 
-        J = 23 + 5*4+2
+        J = J_before + 5*6+3
         J_before = J
 
         #4. Info about locations around
@@ -260,10 +265,12 @@ class Environment():
 
             if new is not None and isinstance(new, tuple) is False:
                 self.metro.make_connection_close(new)
+                self.metro.set_V_E()
                 return new
 
             elif isinstance(new, tuple) is True:
                 self.metro.make_connection_close(new[0])
+                self.metro.set_V_E()
                 return 0
             
             else:

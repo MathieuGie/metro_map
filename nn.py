@@ -7,7 +7,7 @@ class nn(tnn.Module):
     def __init__(self, k :int):
         super().__init__()
 
-        self.fc1 = tnn.Linear(211, 512)
+        self.fc1 = tnn.Linear(222, 512)
         self.norm1 = tnn.BatchNorm1d(512)
         self.fc2 = tnn.Linear(512, 128)
         self.norm2 = tnn.BatchNorm1d(128)
