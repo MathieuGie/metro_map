@@ -351,7 +351,7 @@ class Environment():
                     elif dis>self.r_walking:
                         reward+=0.25/2
                     else:
-                        reward+=0.4/2
+                        reward+=0.3/2
 
             else:
                 #x = (metro_time-walking_time)/walking_time
@@ -361,17 +361,21 @@ class Environment():
                 if metro_time*4<walking_time:
                     reward+=1.2
                 elif metro_time*3<walking_time:
-                    reward+=1.1
-                elif metro_time*2.25<walking_time:
+                    reward+=1
+                elif metro_time*2.6<walking_time:
                     reward+=0.95
-                elif metro_time*1.8<walking_time:
+                elif metro_time*2.25<walking_time:
                     reward+=0.9
-                elif metro_time*1.5<walking_time:
+                elif metro_time*1.8<walking_time:
                     reward+=0.85
+                elif metro_time*1.5<walking_time:
+                    reward+=0.75
+                elif metro_time*1.2<walking_time:
+                    reward+=0.65
                 elif metro_time<walking_time:
-                    reward+=0.66
-                else:
                     reward+=0.5
+                else:
+                    reward+=0.4
 
         """
         # Plotting
