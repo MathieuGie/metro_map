@@ -157,6 +157,8 @@ class Environment():
         self.info[0, J+1] = found_from
         self.info[0, J+2] = found_to
         self.info[0, J+3] = found
+
+        #print("found", found_from, found_to, found)
         J+=4
         J_before=J
 
@@ -565,18 +567,22 @@ class Environment():
         found_to = 0
         found = 0
 
-        for i in range(len(self.initial_points)):
+        for i in range(self.n_simulations):
 
             result = self.metro.is_on_shortest_path(self.initial_points[i], self.final_points[i], v)
 
             if result is not None:
+
                 if result == 0:
                     found_from+=1
                     found_to+=1
+
                 elif result==1:
-                    found_from=1
-                elif result==2:
                     found_to+=1
+
+                elif result==2:
+                    found_from+=1
+
                 else:
                     found+=1
 

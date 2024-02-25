@@ -20,7 +20,7 @@ def calculate_averages(lst, chunk_size=250):
 
 class Coordinator:
 
-    def __init__(self, size, n_simulations, city_center, city_facts, first_station, metro_facts, buffer_size, learning_var, n_iter, allowed_per_play, total_suggerable):
+    def __init__(self, size, n_simulations, city_center, city_facts, first_station, metro_facts, buffer_size, learning_var, n_iter, total_suggerable):
 
         self.size = size
 
@@ -44,7 +44,6 @@ class Coordinator:
 
         self.n_iter = n_iter
 
-        self.allowed_per_play = allowed_per_play
         self.total_suggerable = total_suggerable
 
         self.previous_r=0
@@ -263,7 +262,7 @@ metro_params={
 
     "max_connected" : 2, # A change station has at most 2 connections (CANNOT BE 0)
 
-    "r_walking" : 4,
+    "r_walking" : 15,
     "k_walking" : 6,
     "make_connection_distance":3,
 
@@ -278,22 +277,21 @@ city_params={
 }
 
 learning_var={
-    "epsilon":0.95,
-    "epsilon_decay":0.999995,
-    "tau":0.05,
-    "update_target_interval":100,
+    "epsilon":0.85,
+    "epsilon_decay":0.99995,
+    "tau":0.15,
+    "update_target_interval":50,
     "gamma":0.98
 
 }
 
 
-allowed_per_play = 7
 total_suggerable = 20
 
-n_iter = 18
+n_iter = 10
 
 start_time = time.time()
-coord = Coordinator(35, 200, (0,0), city_params, (0,0), metro_params, 90000000, learning_var, n_iter, allowed_per_play , total_suggerable)
+coord = Coordinator(35, 200, (0,0), city_params, (0,0), metro_params, 300000, learning_var, n_iter , total_suggerable)
 
 
 all = []
