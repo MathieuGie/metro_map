@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 from nn import nn
+from env import Environment
 
 class Learner():
 
@@ -21,7 +22,7 @@ class Learner():
 
         self.loss = tnn.MSELoss()
 
-    def predict(self, x: torch.tensor, epsilon: float):
+    def predict(self, x: torch.tensor, epsilon: float, loc, env: Environment):
 
         with torch.no_grad():
             out = self.prediction_nn.forward(x)
@@ -31,6 +32,23 @@ class Learner():
 
             if proba>epsilon:
                 self.action=int(out.argmax())
+
+            elif 3*proba>epsilon/2: #Fully greedy action taking (to direct the learning towards better actions)
+
+                neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
+                best_action = 0
+                best=0
+                for possible in range(8):
+
+                    new_loc = (loc[0] + int(8*neighbours[possible][0]), loc[1] + int(8*neighbours[possible][1]))
+                    if new_loc[0]<env.size/2 and new_loc[0]>-env.size/2 and new_loc[1]<env.size/2 and new_loc[1]>-env.size/2:
+                        dens, total = env.get_dense_around(new_loc, coef=2)
+                        if dens/total>best:
+                            best = dens/total
+                            best_action = possible
+
+                self.action = best_action
+
             else:
                 self.action=int(np.random.randint(0,8))
 

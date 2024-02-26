@@ -15,7 +15,7 @@ def euclidean(a, b):
     return np.sqrt(np.sum((a - b) ** 2, axis=-1))
 
 
-def calculate_averages(lst, chunk_size=250):
+def calculate_averages(lst, chunk_size=100):
     return [np.mean(lst[i:i + chunk_size]) for i in range(0, len(lst), chunk_size)]
 
 class Coordinator:
@@ -82,7 +82,7 @@ class Coordinator:
         #Using selected station, make state and predict
         state = self.environment.make_state(best_station, self.n_iter, final, 0)
         #T.append((time.time()-start_time, "make state"))
-        self.learner.predict(state, self.epsilon)
+        self.learner.predict(state, self.epsilon, best_station.location, self.environment)
         #T.append((time.time()-start_time, "predict"))
         action = self.learner.action
 
@@ -221,7 +221,7 @@ class Coordinator:
         plt.colorbar(label='Density')
         plt.title('Density and Points')
 
-        plt.savefig('result_map.png')
+        plt.savefig('result_map'+str(run_number)+'.png')
         plt.legend()
 
         if show:
@@ -237,7 +237,7 @@ class Coordinator:
             initial = (i_initial, j_initial)
             final = (i_final, j_final)
 
-            ok = self.environment.metro.get_fastest(initial, final, display=True)
+            ok = self.environment.metro.get_fastest(initial, final, display=True, run_number=run_number)
 
         else:
             print("ALERT")
@@ -279,8 +279,8 @@ city_params={
 learning_var={
     "epsilon":0.85,
     "epsilon_decay":0.99995,
-    "tau":0.15,
-    "update_target_interval":50,
+    "tau":0.05,
+    "update_target_interval":60,
     "gamma":0.98
 
 }
@@ -289,6 +289,8 @@ learning_var={
 total_suggerable = 20
 
 n_iter = 10
+
+run_number = 1
 
 start_time = time.time()
 coord = Coordinator(35, 200, (0,0), city_params, (0,0), metro_params, 300000, learning_var, n_iter , total_suggerable)
@@ -332,7 +334,7 @@ for i in range(80000):
     plt.title('Rewards')
     
     # Save the figure to the same file location every time
-    plt.savefig('reward.png')
+    plt.savefig('reward_'+str(run_number)+'.png')
     
     # Close the figure to free memory
     plt.close()

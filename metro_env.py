@@ -446,7 +446,7 @@ class Stations_network:
 
     """
 
-    def get_fastest(self, a, b, display=False):
+    def get_fastest(self, a, b, display=False, run_number=None):
 
         connections = self.add_points(a, b)
 
@@ -485,7 +485,7 @@ class Stations_network:
                 plt.text(0.5, 0.95, "walking: "+str(walking_time)+" , "+"metro: "+str(metro_time), fontsize=12, ha='center', va='center', transform=plt.gca().transAxes)
 
                 # Save the graph image to a file
-                graph_image_path = '/Users/mathieugierski/Nextcloud/Macbook M3/metro/metro_map/graph_visualization.png'  # Replace with your desired file path
+                graph_image_path = '/Users/mathieugierski/Nextcloud/Macbook M3/metro/metro_map/graph_visualization_'+str(run_number)+'.png'  # Replace with your desired file path
                 plt.savefig(graph_image_path)
 
                 plt.close()
