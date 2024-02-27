@@ -204,8 +204,10 @@ class Environment():
                 #Get the density and occupation
                     
                 if new_loc[0]<self.size/2 and new_loc[0]>-self.size/2 and new_loc[1]<self.size/2 and new_loc[1]>-self.size/2:
-                    dens, area = self.get_dense_around(new_loc)
-                    dens_occupied  = self.get_share_already_served(new_loc)
+                    dens, area = self.get_dense_around(new_loc, coef=2.5)
+                    dens_occupied  = self.get_share_already_served(new_loc, coef=2.5)
+
+                    #print("DENSITY",dens_occupied/dens, dens, dens_occupied)
 
                     self.info[0, J+i+1]=area/self.max_station_area
                     self.info[0, J+i+2]=dens/area
@@ -257,7 +259,7 @@ class Environment():
     def change_metro(self, station, action):
 
         neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
-        scales = [6, 12]
+        scales = [8]
 
         #neighbours = [(1,0), (0,1), (-1,0), (0, -1)]
         #scales = [6]
@@ -309,13 +311,13 @@ class Environment():
             i_initial, j_initial = self.metropolis.pick_point()
             i_final, j_final = self.metropolis.pick_point()
 
-            done=1
+            done=0
             coef = 2
-            while euclidean((i_initial, j_initial),(i_final, j_final))<coef*self.r_walking:
+            while euclidean((i_initial, j_initial),(i_final, j_final))<coef*6:
                 i_initial, j_initial = self.metropolis.pick_point()
                 done+=1
 
-                if done>=3:
+                if done>=4:
                     coef = 1.5
 
 
@@ -447,11 +449,11 @@ class Environment():
 
     ################################################ 7.
 
-    def get_dense_around(self, location):
+    def get_dense_around(self, location, coef=1):
 
         all_possible_pixels_array = np.array(list(self.metropolis.all_possible_pixels))
         distances = np.linalg.norm(all_possible_pixels_array - np.array(location), axis=1)
-        within_r_walking_mask = distances <= self.metro.r_walking
+        within_r_walking_mask = distances <= self.metro.r_walking/coef
         pixels_within_r_walking = all_possible_pixels_array[within_r_walking_mask]
         
         density = 0
@@ -464,6 +466,8 @@ class Environment():
         
         density = max(density, 0.001)
         total_seen = max(total_seen, 0.001)
+
+        #print("DENSITY", density/total_seen, density, total_seen)
         
         return density, total_seen
 
@@ -480,16 +484,16 @@ class Environment():
         
         return closest, dis_closest
 
-    def get_share_already_served(self, location):
+    def get_share_already_served(self, location, coef=1):
 
         density_served = 0
         station_locations = np.array([station.location for station in self.metro.all_stations])
 
         for pixel in self.metropolis.area:
-            if euclidean(pixel, location) <= self.metro.r_walking:
+            if euclidean(pixel, location) <= self.metro.r_walking/coef:
                 distances = np.linalg.norm(station_locations - np.array(pixel), axis=1)
                 
-                if np.any(distances <= self.metro.r_walking):
+                if np.any(distances <= self.metro.r_walking/coef):
                     density_served += self.metropolis.density[pixel][0]
 
         return density_served

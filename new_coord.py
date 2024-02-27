@@ -121,7 +121,7 @@ class Coordinator:
         
         ###############
         #Now sample from REPLAY BUFFER:
-        samples = self.buffer.sample(128)
+        samples = self.buffer.sample(256)
 
         for sample in samples:
 
@@ -280,7 +280,7 @@ learning_var={
     "epsilon":0.85,
     "epsilon_decay":0.99995,
     "tau":0.05,
-    "update_target_interval":60,
+    "update_target_interval":1500,
     "gamma":0.98
 
 }
@@ -290,7 +290,7 @@ total_suggerable = 20
 
 n_iter = 10
 
-run_number = 1
+run_number = 4
 
 start_time = time.time()
 coord = Coordinator(35, 200, (0,0), city_params, (0,0), metro_params, 300000, learning_var, n_iter , total_suggerable)

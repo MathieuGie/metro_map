@@ -42,9 +42,11 @@ class Learner():
 
                     new_loc = (loc[0] + int(8*neighbours[possible][0]), loc[1] + int(8*neighbours[possible][1]))
                     if new_loc[0]<env.size/2 and new_loc[0]>-env.size/2 and new_loc[1]<env.size/2 and new_loc[1]>-env.size/2:
-                        dens, total = env.get_dense_around(new_loc, coef=2)
-                        if dens/total>best:
-                            best = dens/total
+                        dens, _ = env.get_dense_around(new_loc, coef=2.5)
+                        dens_occupied  = env.get_share_already_served(new_loc, coef=2.5)
+
+                        if dens-dens_occupied>best:
+                            best = dens-dens_occupied
                             best_action = possible
 
                 self.action = best_action
