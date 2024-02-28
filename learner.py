@@ -33,7 +33,12 @@ class Learner():
             if proba>epsilon:
                 self.action=int(out.argmax())
 
-            elif 3*proba>epsilon/2: #Fully greedy action taking (to direct the learning towards better actions)
+            elif proba>epsilon/2: #Fully greedy action taking (to direct the learning towards better actions)
+
+                if proba>3*epsilon/4:
+                    constant = 1
+                else:
+                    constant = 0.4
 
                 neighbours = [(1,0), (0,1), (-1,0), (0, -1), (np.sqrt(2)/2, np.sqrt(2)/2), (-np.sqrt(2)/2, -np.sqrt(2)/2), (np.sqrt(2)/2, -np.sqrt(2)/2), (-np.sqrt(2)/2, np.sqrt(2)/2)]
                 best_action = 0
@@ -42,8 +47,8 @@ class Learner():
 
                     new_loc = (loc[0] + int(8*neighbours[possible][0]), loc[1] + int(8*neighbours[possible][1]))
                     if new_loc[0]<env.size/2 and new_loc[0]>-env.size/2 and new_loc[1]<env.size/2 and new_loc[1]>-env.size/2:
-                        dens, _ = env.get_dense_around(new_loc, coef=2.5)
-                        dens_occupied  = env.get_share_already_served(new_loc, coef=2.5)
+                        dens, _ = env.get_dense_around(new_loc, coef=constant)
+                        dens_occupied  = env.get_share_already_served(new_loc, coef=constant)
 
                         if dens-dens_occupied>best:
                             best = dens-dens_occupied

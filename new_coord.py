@@ -262,11 +262,11 @@ metro_params={
 
     "max_connected" : 2, # A change station has at most 2 connections (CANNOT BE 0)
 
-    "r_walking" : 15,
+    "r_walking" : 8,
     "k_walking" : 6,
     "make_connection_distance":3,
 
-    "p_selecting_station":0.8 # chance of prolongating a line instead of randomly selecting a station (when not picking station based on best q_value)
+    "p_selecting_station":0.9 # chance of prolongating a line instead of randomly selecting a station (when not picking station based on best q_value)
 }
 
 city_params={
@@ -277,8 +277,8 @@ city_params={
 }
 
 learning_var={
-    "epsilon":0.85,
-    "epsilon_decay":0.99995,
+    "epsilon":0.9,
+    "epsilon_decay":0.99999,
     "tau":0.05,
     "update_target_interval":1500,
     "gamma":0.98
@@ -288,12 +288,12 @@ learning_var={
 
 total_suggerable = 20
 
-n_iter = 10
+n_iter = 14
 
-run_number = 4
+run_number = 6
 
 start_time = time.time()
-coord = Coordinator(35, 200, (0,0), city_params, (0,0), metro_params, 300000, learning_var, n_iter , total_suggerable)
+coord = Coordinator(50, 250, (0,0), city_params, (0,0), metro_params, 300000, learning_var, n_iter , total_suggerable)
 
 
 all = []

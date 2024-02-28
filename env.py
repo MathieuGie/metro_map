@@ -89,7 +89,7 @@ class Environment():
         #neighbours = [(1,0), (0,1), (-1,0), (0, -1)]
         #scales = [6]
 
-        self.info=torch.zeros((1,145))
+        self.info=torch.zeros((1,159))
         J=0
 
         #0. If final or not:
@@ -164,7 +164,7 @@ class Environment():
 
         #3. cities
         #Info about best cities:
-        best_dens, max_dens, max_area = self.metropolis.get_best_city_centers(6)
+        best_dens, max_dens, max_area = self.metropolis.get_best_city_centers(4)
 
         for city in best_dens:
 
@@ -172,6 +172,9 @@ class Environment():
             self.info[0, J+1] = city[1]/(self.size)+0.5
 
             walking, metro, _ = self.metro.get_fastest(city, selected.location)
+
+            #print(J)
+            #print(city[0]/(self.size)+0.5, city[1]/(self.size)+0.5, metro/(4*walking), best_dens[city][0]/max_dens,  best_dens[city][1]/max_area)
 
             if metro!=np.infty:
                 self.info[0, J+2] = metro/(4*walking)
@@ -183,7 +186,7 @@ class Environment():
             else:
                 J+=2
 
-        J = J_before + 5*6+3
+        J = J_before + 5*4+3
         J_before = J
 
         #4. Info about locations around
@@ -204,8 +207,14 @@ class Environment():
                 #Get the density and occupation
                     
                 if new_loc[0]<self.size/2 and new_loc[0]>-self.size/2 and new_loc[1]<self.size/2 and new_loc[1]>-self.size/2:
-                    dens, area = self.get_dense_around(new_loc, coef=2.5)
-                    dens_occupied  = self.get_share_already_served(new_loc, coef=2.5)
+
+                    #Direct neighbourhood
+                    dens, area = self.get_dense_around(new_loc, coef=1)
+                    dens_occupied  = self.get_share_already_served(new_loc, coef=1)
+
+                    #Provides information with wider sight
+                    wider_dens, wider_area = self.get_dense_around(new_loc, coef=0.4)
+                    wider_dens_occupied = self.get_share_already_served(new_loc, coef=0.4)
 
                     #print("DENSITY",dens_occupied/dens, dens, dens_occupied)
 
@@ -213,8 +222,13 @@ class Environment():
                     self.info[0, J+i+2]=dens/area
                     self.info[0, J+i+3]=dens_occupied/dens
 
-                    closest_station, closest_dis = self.get_nearest_station(new_loc)
-                    self.info[0, J+i+4] = closest_dis/np.max(scales)
+                    self.info[0, J+i+4]=wider_area/(self.max_station_area*0.4)
+                    self.info[0, J+i+5]=wider_dens/wider_area
+                    self.info[0, J+i+6]=wider_dens_occupied/wider_dens
+
+
+                    _, closest_dis = self.get_nearest_station(new_loc)
+                    self.info[0, J+i+7] = closest_dis/np.max(scales)
 
                     if closest_dis==0:
                         for s in self.metro.all_stations:
@@ -222,27 +236,27 @@ class Environment():
 
                                 #Find if can connect to one complete station already
                                 if s in self.metro.complete:
-                                    self.info[0, J+i+5] = 1
+                                    self.info[0, J+i+8] = 1
 
                                 #Find the same link already
                                 if s.previous is not None:
                                     if s.previous.location == selected.location:
 
-                                        self.info[0, J+i+6] = 1 #Found the same link already
+                                        self.info[0, J+i+9] = 1 #Found the same link already
 
                                 if s.next is not None:
                                     if s.next.location == selected.location:
 
-                                        self.info[0, J+i+6] = 1 #Found the same link already
+                                        self.info[0, J+i+9] = 1 #Found the same link already
 
                     #print("DISTANCES", closest_dis/np.max(scales), closest_station.location, new_loc)
-                    self.info[0, J+i+7] = 1 #In boundary
+                    self.info[0, J+i+10] = 1 #In boundary
                 
-                J+=10
+                J+=13
 
         #T.append((time.time()-start_time, "locations around"))
 
-        J = J_before+10*8 #16 before (with the 16 actions)
+        J = J_before+13*8 #16 before (with the 16 actions)
 
         #5. Check current area:
         dens, area = self.get_dense_around(selected.location)
@@ -346,9 +360,9 @@ class Environment():
 
                 for dis in l_dis:
 
-                    if dis>2.5*self.r_walking:
+                    if dis>1.5*self.r_walking:
                         reward+=0.05/2
-                    elif dis>1.6*self.r_walking:
+                    elif dis>1.2*self.r_walking:
                         reward+=0.1/2
                     elif dis>self.r_walking:
                         reward+=0.25/2
