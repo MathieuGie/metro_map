@@ -81,8 +81,32 @@ class Coordinator:
 
         #Using selected station, make state and predict
         state = self.environment.make_state(best_station, self.n_iter, final, 0)
+        print("STATE", state.shape)
+
+
+        #Add all the stations on a line:
+        neighb_on_line = None
+        st = self.environment.metro.lines[best_station.line].starting
+        again = 1
+        while again==1:
+
+            if st != best_station:
+                if neighb_on_line is None:
+                    neighb_on_line = self.environment.make_state(st, self.n_iter, final, 0)
+                else:
+                    neighb_on_line = torch.cat((neighb_on_line,  self.environment.make_state(st, self.n_iter, final, 0)), dim=0)
+
+                print("NEIGBH", neighb_on_line.shape)
+
+            if st.next is None:
+                again =0
+
+            else:
+                st = st.next
+
+
         #T.append((time.time()-start_time, "make state"))
-        self.learner.predict(state, self.epsilon, best_station.location, self.environment)
+        self.learner.predict(state, self.epsilon, best_station.location, self.environment, neighb_on_line)
         #T.append((time.time()-start_time, "predict"))
         action = self.learner.action
 
@@ -252,8 +276,8 @@ class Coordinator:
 metro_params={
 
     #Distances
-    "speed_metro" : 15,
-    "speed_change" : 1,
+    "speed_metro" : 10, #This was 15
+    "speed_change" : 0.8,
     "speed_walk" : 1,
 
     #Times
@@ -262,7 +286,7 @@ metro_params={
 
     "max_connected" : 2, # A change station has at most 2 connections (CANNOT BE 0)
 
-    "r_walking" : 8,
+    "r_walking" : 3, #this was 8
     "k_walking" : 6,
     "make_connection_distance":3,
 
@@ -290,7 +314,7 @@ total_suggerable = 20
 
 n_iter = 14
 
-run_number = 6
+run_number = 7
 
 start_time = time.time()
 coord = Coordinator(50, 250, (0,0), city_params, (0,0), metro_params, 300000, learning_var, n_iter , total_suggerable)
